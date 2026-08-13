@@ -11,12 +11,15 @@ set "RELEASE_TAG=%~1"
 set "UPDATER_KEY=%LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.key"
 
 if "%~1"=="" (
-  echo.
-  echo  Unitech Pricing - Tao ban phat hanh moi
-  echo  Nhap version theo dang 0.1.2 ^(khong can viet chu v^).
-  set /p "RELEASE_VERSION=Version moi: "
-  if "!RELEASE_VERSION!"=="" goto :usage
+  for /f "usebackq delims=" %%V in (`node scripts\next-release-version.mjs`) do set "RELEASE_VERSION=%%V"
+  if "!RELEASE_VERSION!"=="" (
+    echo [ERROR] Khong the tu dong tao version moi.
+    goto :failed
+  )
   set "RELEASE_TAG=v!RELEASE_VERSION!"
+  echo.
+  echo  Unitech Pricing - Tao ban phat hanh %RELEASE_TAG%
+  echo  Version duoc tu dong tang theo patch.
 ) else (
   set "RELEASE_VERSION=%RELEASE_TAG:v=%"
 )

@@ -5,8 +5,11 @@
 Sau khi hoàn tất tính năng và đã commit tất cả thay đổi, chạy:
 
 ```bat
-release.bat v0.1.2
+release.bat
 ```
+
+Script tự tăng patch, ví dụ `0.1.1` thành `0.1.2`. Chỉ dùng
+`release.bat v0.2.0` khi cần chủ động phát hành bản minor/major.
 
 Script sẽ tự động:
 
