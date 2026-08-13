@@ -13,7 +13,7 @@ Script tự tăng patch, ví dụ `0.1.1` thành `0.1.2`. Chỉ dùng
 
 Script sẽ tự động:
 
-1. Dừng nếu source còn thay đổi chưa commit.
+1. Tự lấy mọi thay đổi hiện tại vào đúng bản release đó.
 2. Kiểm tra private key ký updater trên máy.
 3. Build frontend, chạy test và `cargo check`.
 4. Đồng bộ version tại `src-tauri/tauri.conf.json` và `src-tauri/Cargo.toml`.

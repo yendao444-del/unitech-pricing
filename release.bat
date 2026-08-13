@@ -11,18 +11,19 @@ set "RELEASE_TAG=%~1"
 set "UPDATER_KEY=%LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.key"
 
 if "%~1"=="" (
-  for /f "usebackq delims=" %%V in (`node scripts\next-release-version.mjs`) do set "RELEASE_VERSION=%%V"
+  for /f "delims=" %%V in ('node scripts\next-release-version.mjs') do set "RELEASE_VERSION=%%V"
   if "!RELEASE_VERSION!"=="" (
     echo [ERROR] Khong the tu dong tao version moi.
     goto :failed
   )
   set "RELEASE_TAG=v!RELEASE_VERSION!"
-  echo.
-  echo  Unitech Pricing - Tao ban phat hanh %RELEASE_TAG%
-  echo  Version duoc tu dong tang theo patch.
 ) else (
   set "RELEASE_VERSION=%RELEASE_TAG:v=%"
 )
+
+echo.
+echo  Unitech Pricing - Tao ban phat hanh %RELEASE_TAG%
+echo  Version duoc tu dong tang theo patch.
 
 powershell -NoProfile -Command "if ('%RELEASE_VERSION%' -match '^\d+\.\d+\.\d+$') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
@@ -33,10 +34,10 @@ if errorlevel 1 (
 pushd "%PROJECT_DIR%"
 
 echo.
-echo === 1/8 Kiem tra Git va trang thai source ===
+echo === 1/8 Kiem tra Git ===
 git rev-parse --is-inside-work-tree >nul 2>&1 || goto :not_git
-git diff --quiet || goto :dirty
-git diff --cached --quiet || goto :dirty
+git diff --quiet || echo [INFO] Co thay doi chua commit - se dua vao ban release nay.
+git diff --cached --quiet || echo [INFO] Co thay doi da stage - se dua vao ban release nay.
 
 echo === 2/8 Kiem tra khoa ky updater ===
 if not exist "%UPDATER_KEY%" (
@@ -64,7 +65,7 @@ echo === 6/8 Dong goi installer EXE co chu ky updater ===
 call npm run build:exe || goto :failed
 
 echo === 7/8 Commit, push va tao Git tag ===
-git add src-tauri\tauri.conf.json src-tauri\Cargo.toml src-tauri\Cargo.lock
+git add -A
 git commit -m "chore(release): v%RELEASE_VERSION%" || goto :failed
 git push origin main || goto :failed
 git tag -a "v%RELEASE_VERSION%" -m "Unitech Pricing v%RELEASE_VERSION%" || goto :failed
@@ -79,10 +80,6 @@ echo https://github.com/yendao444-del/unitech-pricing/actions
 echo https://github.com/yendao444-del/unitech-pricing/releases
 popd
 goto :success
-
-:dirty
-echo [ERROR] Source dang co thay doi chua commit. Hay commit/stash truoc khi release.
-goto :failed
 
 :not_git
 echo [ERROR] Thu muc nay chua duoc ket noi Git.
