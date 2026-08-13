@@ -8,10 +8,18 @@ rem ================================================================
 
 set "PROJECT_DIR=%~dp0"
 set "RELEASE_TAG=%~1"
-set "RELEASE_VERSION=%RELEASE_TAG:v=%"
 set "UPDATER_KEY=%LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.key"
 
-if "%~1"=="" goto :usage
+if "%~1"=="" (
+  echo.
+  echo  Unitech Pricing - Tao ban phat hanh moi
+  echo  Nhap version theo dang 0.1.2 ^(khong can viet chu v^).
+  set /p "RELEASE_VERSION=Version moi: "
+  if "!RELEASE_VERSION!"=="" goto :usage
+  set "RELEASE_TAG=v!RELEASE_VERSION!"
+) else (
+  set "RELEASE_VERSION=%RELEASE_TAG:v=%"
+)
 
 powershell -NoProfile -Command "if ('%RELEASE_VERSION%' -match '^\d+\.\d+\.\d+$') { exit 0 } else { exit 1 }"
 if errorlevel 1 (
@@ -67,7 +75,7 @@ echo GitHub Actions dang tao release tu tag v%RELEASE_VERSION%.
 echo https://github.com/yendao444-del/unitech-pricing/actions
 echo https://github.com/yendao444-del/unitech-pricing/releases
 popd
-exit /b 0
+goto :success
 
 :dirty
 echo [ERROR] Source dang co thay doi chua commit. Hay commit/stash truoc khi release.
@@ -81,10 +89,18 @@ goto :failed
 echo.
 echo Cach dung: release.bat v0.1.2
 echo Version phai tang so va theo dinh dang X.Y.Z.
-exit /b 1
+goto :failed
 
 :failed
-popd
 echo.
 echo Release da dung an toan. Chua co tag/release nao duoc tao o buoc loi.
+echo.
+pause
 exit /b 1
+
+:success
+echo.
+echo Release da khoi dong thanh cong. Nhan phim bat ky de dong cua so nay.
+echo.
+pause
+exit /b 0
