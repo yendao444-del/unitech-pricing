@@ -32,6 +32,10 @@ Script sẽ tự động:
 %LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.key
 ```
 
+Mật khẩu ký được phần mềm tự tạo và tự đọc từ
+`%LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.password`; người dùng
+không phải nhập mật khẩu khi chạy `release.bat`.
+
 Không được đưa key này vào Git, gửi qua chat hoặc đổi key khi app đã có người cài. GitHub Actions dùng bản sao key trong secret `TAURI_SIGNING_PRIVATE_KEY`.
 
 ## File tạo ra
@@ -40,7 +44,6 @@ Tất cả file local đều được gom ngay vào thư mục `release` cạnh 
 vào `src-tauri\target`:
 
 - `release\*.exe`: bộ cài Windows chuẩn.
-- `release\*.msi`: bộ cài MSI (phù hợp triển khai nội bộ).
 - `release\*.exe.sig`: chữ ký an toàn của bộ cài updater Windows.
 - `release\latest.json`: thông tin để app đang cài tự kiểm tra bản mới.
 
