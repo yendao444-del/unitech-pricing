@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import html2pdf from "html2pdf.js";
 import dbyLogo from "./assets/dby-logo-navbar.png";
+import formulaRollAnatomy from "./assets/formula-roll-anatomy.png";
 import {
   ArrowRight,
   ArrowsCounterClockwise,
@@ -190,6 +191,63 @@ const DEFAULT_QUOTE_TERMS = [
   "Mọi thắc mắc về chất lượng của sản phẩm vui lòng liên hệ trực tiếp phòng kinh doanh Mrs Ngân '0961453395",
   "Rất mong có cơ hội được phục vụ quý khách hàng. Xin chân thành cảm ơn!",
 ];
+
+const FORMULA_HELP = {
+  "tem-known-meters": {
+    title: "Báo giá cuộn tem theo chiều dài",
+    lines: [
+      "Khổ tính tiền (m) = (Chiều ngang tem + 5 mm) ÷ 1.000",
+      "Diện tích (m²) = Khổ tính tiền × Chiều dài cuộn",
+      "Phí gia công/cuộn = Diện tích × Đơn giá gia công/m² nhập thủ công",
+      "Giá cuộn = Chi phí giấy + Phí gia công theo diện tích",
+    ],
+    note: "Giá bán làm tròn lên 1.000đ, chưa gồm VAT.",
+  },
+  "tem-piece": {
+    title: "Báo giá tem theo đơn vị chiếc",
+    lines: [
+      "Diện tích 1 tem (m²) = Rộng × Dài ÷ 1.000.000",
+      "Đơn giá áp dụng/m² = Giá giấy/m² + Phí gia công/m²",
+      "Giá 1 tem = Diện tích 1 tem × Đơn giá áp dụng/m²",
+    ],
+    note: "Giá tem làm tròn lên 1đ; tổng đơn hàng làm tròn lên 1.000đ.",
+  },
+  "tem-roll-quantity": {
+    title: "Báo giá cuộn theo số lượng tem",
+    lines: [
+      "Chiều dài cuộn (m) = (Chiều dọc tem + 3 mm) ÷ 1.000 × Số tem/cuộn",
+      "Sau khi suy ra chiều dài, giá cuộn được tính theo phương thức 1.",
+    ],
+    note: "Giá bán làm tròn lên 1.000đ, chưa gồm VAT.",
+  },
+  "tem-label-count": {
+    title: "Quy đổi số lượng tem trên cuộn",
+    lines: [
+      "Số tem lý thuyết = Chiều dài cuộn ÷ ((Chiều dọc tem + 3 mm) ÷ 1.000)",
+      "Số tem sử dụng = Làm tròn xuống số nguyên gần nhất",
+    ],
+    note: "Phương thức này chỉ quy đổi số lượng, không tính giá vật liệu.",
+  },
+  "tem-one-color": {
+    title: "Báo giá tem in màu",
+    lines: [
+      "Tính giá cuộn theo phương thức 1",
+      "Phí gia công/cuộn = Diện tích vật liệu/cuộn × Đơn giá gia công/m² nhập thủ công",
+      "Giá cuộn = Chi phí giấy + Phí gia công theo diện tích",
+    ],
+    note: "Giá bán làm tròn lên 1.000đ, chưa gồm VAT.",
+  },
+  "tem-laminated": {
+    title: "Báo giá tem màu cán màng",
+    lines: [
+      "Tính giá cuộn theo phương thức 1",
+      "Phí gia công/cuộn = Diện tích vật liệu/cuộn × Đơn giá gia công/m²",
+      "Tiền màng/cuộn = Diện tích vật liệu × Đơn giá màng/m²",
+    ],
+    note: "Giá bán làm tròn lên 1.000đ, chưa gồm VAT.",
+  },
+};
+
 export function App() {
   const appWindow = useMemo(() => {
     if (typeof window !== "undefined" && window.__TAURI_INTERNALS__) {
@@ -226,6 +284,7 @@ export function App() {
   const [meters, setMeters] = useState("");
   const [paperPrice, setPaperPrice] = useState("");
   const [processing, setProcessing] = useState("");
+  const [laminationPrice, setLaminationPrice] = useState("");
   const [profitPercent, setProfitPercent] = useState("");
   const [profitAmount, setProfitAmount] = useState("");
   const [profitMode, setProfitMode] = useState("percent");
@@ -234,6 +293,7 @@ export function App() {
   const [category, setCategory] = useState("tem");
   const [activeMenu, setActiveMenu] = useState("tem");
   const [formula, setFormula] = useState("tem-known-meters");
+  const [showFormulaHelp, setShowFormulaHelp] = useState(false);
   const [saved, setSaved] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(
     updatePreviewStatus || "idle",
@@ -774,32 +834,47 @@ export function App() {
     const w = Number(width) || 0;
     const m = Number(meters) || 0;
     const p = parseMoneyInput(paperPrice);
-    const extraFee =
-      formula === "tem-one-color"
-        ? 5000
-        : formula === "tem-two-color"
-          ? 7000
-          : formula === "tem-laminated"
-            ? 11000
-            : 0;
-    const fee = parseMoneyInput(processing) + extraFee;
     const q = Number(quantity) || 0;
-    const usefulWidth = (w + 5) / 1000;
+    const hasDimensions = w > 0 && m > 0;
+    const hasPricingInputs = hasDimensions && p > 0;
+    const usefulWidth = w > 0 ? (w + 5) / 1000 : 0;
     const area = usefulWidth * m;
-    const paper = area * p;
-    const unit = paper + fee;
+    const fixedSurcharge = 0;
+    const laminationCost =
+      hasPricingInputs && formula === "tem-laminated"
+        ? area * parseMoneyInput(laminationPrice)
+        : 0;
+    const usesAreaProcessing = [
+      "tem-known-meters",
+      "tem-one-color",
+      "tem-laminated",
+    ].includes(formula);
+    const areaProcessingCost =
+      hasPricingInputs && usesAreaProcessing
+        ? area * parseMoneyInput(processing)
+        : 0;
+    const surchargeCost = fixedSurcharge;
+    const fee = hasPricingInputs
+      ? usesAreaProcessing
+        ? areaProcessingCost
+        : parseMoneyInput(processing)
+      : 0;
+    const paper = hasPricingInputs ? area * p : 0;
+    const unit = paper + fee + fixedSurcharge + laminationCost;
     const rolls = mode === "roll" ? q : Math.ceil(q / 1000);
     return {
       usefulWidth,
       area,
       paper,
       fee,
-      extraFee,
+      areaProcessingCost,
+      surchargeCost,
+      laminationCost,
       unit,
       rolls,
       order: unit * rolls,
     };
-  }, [width, meters, paperPrice, processing, quantity, mode, formula]);
+  }, [width, meters, paperPrice, processing, laminationPrice, quantity, mode, formula]);
 
   useEffect(() => {
     if (
@@ -809,25 +884,42 @@ export function App() {
       ![
         "tem-known-meters",
         "tem-one-color",
-        "tem-two-color",
         "tem-laminated",
       ].includes(formula)
-    )
+    ) {
+      setBackendCalc(null);
       return;
+    }
+    if (
+      !(Number(width) > 0) ||
+      !(Number(meters) > 0) ||
+      !(parseMoneyInput(paperPrice) > 0)
+    ) {
+      setBackendCalc(null);
+      return;
+    }
     invoke("calculate_white_roll_quote", {
       input: {
         widthMm: Number(width) || 0,
         meters: Number(meters) || 0,
         paperPrice: parseMoneyInput(paperPrice),
-        processingFee:
-          parseMoneyInput(processing) +
-          (formula === "tem-one-color"
-            ? 5000
-            : formula === "tem-two-color"
-              ? 7000
-              : formula === "tem-laminated"
-                ? 11000
-                : 0),
+        processingFee: [
+          "tem-known-meters",
+          "tem-one-color",
+          "tem-laminated",
+        ].includes(formula)
+          ? 0
+          : parseMoneyInput(processing),
+        fixedSurcharge: 0,
+        processingRatePerM2: [
+          "tem-known-meters",
+          "tem-one-color",
+          "tem-laminated",
+        ].includes(formula)
+          ? parseMoneyInput(processing)
+          : 0,
+        laminationRatePerM2:
+          formula === "tem-laminated" ? parseMoneyInput(laminationPrice) : 0,
         quantity: Number(quantity) || 0,
       },
     })
@@ -838,6 +930,7 @@ export function App() {
     meters,
     paperPrice,
     processing,
+    laminationPrice,
     quantity,
     mode,
     category,
@@ -959,6 +1052,112 @@ export function App() {
 
   const displayRollByCountCalc = backendRollByCountCalc ?? rollByCountCalc;
 
+  const formulaWalkthrough = useMemo(() => {
+    const w = Number(width) || 50;
+    const l = Number(length) || 30;
+    const m = Number(meters) || 100;
+    const labels = Number(labelsPerRoll) || 1000;
+    const paper = parseMoneyInput(paperPrice) || 9200;
+    const processingFee = parseMoneyInput(processing) || 5000;
+    const areaProcessingRate = parseMoneyInput(processing) || 4000;
+    const formatted = (value, digits = 2) =>
+      Number(value || 0).toFixed(digits).replace(".", ",");
+    const moneyValue = (value) => `${money.format(value || 0)} đ`;
+
+    if (formula === "tem-piece") {
+      const area = (w * l) / 1_000_000;
+      const rate = paper + processingFee;
+      const unit = Math.ceil(area * rate);
+      return {
+        subject: `Một tem rộng ${w} mm, dài ${l} mm`,
+        steps: [
+          { label: "Diện tích 1 tem", equation: `${w} × ${l} ÷ 1.000.000 = ${formatted(area, 6)} m²`, operator: "×", factors: [[`${w} mm`, "Chiều rộng"], [`${l} mm`, "Chiều dài"]] },
+          { label: "Đơn giá áp dụng", equation: `${money.format(paper)} + ${money.format(processingFee)} = ${money.format(rate)} đ/m²`, operator: "+", factors: [[`${money.format(paper)} đ/m²`, "Giá giấy"], [`${money.format(processingFee)} đ/m²`, "Phí gia công"]] },
+          { label: "Giá vốn / tem", equation: `${formatted(area, 6)} m² × ${money.format(rate)} = ${moneyValue(unit)}`, operator: "×", factors: [[`${formatted(area, 6)} m²`, "Diện tích"], [`${money.format(rate)} đ/m²`, "Đơn giá áp dụng"]] },
+        ],
+        finalLabel: "Đơn giá 1 tem",
+        finalValue: moneyValue(unit),
+        finalUnit: "/ tem",
+        sources: [[`${w} mm`, "Chiều rộng tem"], [`${l} mm`, "Chiều dài tem"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [`${money.format(processingFee)} đ/m²`, "Phí gia công"]],
+      };
+    }
+
+    if (formula === "tem-roll-quantity") {
+      const derived = ((l + 3) / 1000) * labels;
+      const area = ((w + 5) / 1000) * derived;
+      const unit = Math.ceil((area * paper + processingFee) / 1000) * 1000;
+      return {
+        subject: `${labels} tem / cuộn, tem cao ${l} mm`,
+        steps: [
+          { label: "Chiều dài cuộn suy ra", equation: `(${l} + 3) ÷ 1.000 × ${labels} = ${formatted(derived)} m`, operator: "×", factors: [[`${l} + 3 mm`, "Bước tem"], [`${labels} tem`, "Số tem/cuộn"]] },
+          { label: "Diện tích vật liệu", equation: `(${w} + 5) ÷ 1.000 × ${formatted(derived)} = ${formatted(area)} m²`, operator: "×", factors: [[`${formatted((w + 5) / 1000, 3)} m`, "Khổ tính tiền"], [`${formatted(derived)} m`, "Chiều dài suy ra"]] },
+          { label: "Giá vốn / cuộn", equation: `${formatted(area)} m² × ${money.format(paper)} + ${money.format(processingFee)} = ${moneyValue(unit)}`, operator: "+", factors: [[`${formatted(area)} m²`, "Diện tích"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [moneyValue(processingFee), "Phí gia công"]] },
+        ],
+        finalLabel: "Giá bán / cuộn",
+        finalValue: moneyValue(unit),
+        finalUnit: "/ cuộn",
+        sources: [[`${w} mm`, "Chiều ngang tem"], [`${l} mm`, "Chiều dọc tem"], [`${labels} tem`, "Số tem/cuộn"], [`${money.format(paper)} đ/m²`, "Giá giấy"]],
+      };
+    }
+
+    if (formula === "tem-label-count") {
+      const theoretical = l > 0 ? m / ((l + 3) / 1000) : 0;
+      return {
+        subject: `Cuộn dài ${m} m, tem cao ${l} mm`,
+        steps: [
+          { label: "Bước tem", equation: `(${l} + 3) ÷ 1.000 = ${formatted((l + 3) / 1000, 3)} m`, operator: "+", factors: [[`${l} mm`, "Chiều dọc"], ["3 mm", "Khoảng cách"]] },
+          { label: "Số tem lý thuyết", equation: `${m} ÷ ${formatted((l + 3) / 1000, 3)} = ${formatted(theoretical, 1)} tem`, operator: "÷", factors: [[`${m} m`, "Chiều dài cuộn"], [`${formatted((l + 3) / 1000, 3)} m`, "Bước tem"]] },
+          { label: "Số tem sử dụng", equation: `Làm tròn xuống = ${money.format(Math.floor(theoretical))} tem`, factors: [[`${formatted(theoretical, 1)} tem`, "Lý thuyết"], [`${money.format(Math.floor(theoretical))} tem`, "Sử dụng"]] },
+        ],
+        finalLabel: "Số tem / cuộn",
+        finalValue: `${money.format(Math.floor(theoretical))} tem`,
+        sources: [[`${l} mm`, "Chiều dọc"], [`${m} m`, "Chiều dài cuộn"]],
+        quantityOnly: true,
+      };
+    }
+
+    const usefulWidth = (w + 5) / 1000;
+    const area = usefulWidth * m;
+    const hasLamination = formula === "tem-laminated";
+    const laminationCost = formula === "tem-laminated"
+      ? area * parseMoneyInput(laminationPrice)
+      : 0;
+    const usesAreaProcessing = [
+      "tem-known-meters",
+      "tem-one-color",
+      "tem-laminated",
+    ].includes(formula);
+    const effectiveProcessingFee = usesAreaProcessing
+      ? area * areaProcessingRate
+      : processingFee;
+    const production = area * paper + effectiveProcessingFee + laminationCost;
+    const exampleProfit = profitMode === "amount"
+      ? Number(profitAmount) || 0
+      : (production * (Number(profitPercent) || 0)) / 100;
+    const sale = Math.ceil((production + exampleProfit) / 1000) * 1000;
+    return {
+      subject: `Một cuộn tem rộng ${w} mm, dài ${m} m`,
+      steps: [
+        { label: "Khổ tính tiền", equation: `(${w} + 5) ÷ 1.000 = ${formatted(usefulWidth, 3)} m`, operator: "+", factors: [[`${w} mm`, "Rộng tem"], ["5 mm", "Chừa mép"]] },
+        { label: "Diện tích vật liệu", equation: `${formatted(usefulWidth, 3)} m × ${m} m = ${formatted(area)} m²`, operator: "×", factors: [[`${formatted(usefulWidth, 3)} m`, "Khổ tính tiền"], [`${m} m`, "Chiều dài cuộn"]] },
+        { label: "Giá vốn / cuộn", equation: `${formatted(area)} m² × ${money.format(paper)} + ${money.format(effectiveProcessingFee)}${hasLamination ? ` + ${money.format(laminationCost)} tiền màng` : ""} = ${moneyValue(production)}`, factors: [[`${formatted(area)} m²`, "Diện tích vật liệu"], [`${money.format(paper)} đ/m²`, "Đơn giá vật liệu", "×"], [`${money.format(effectiveProcessingFee)} đ`, formula === "tem-one-color" ? "Gia công in màu" : "Phí gia công", "+"], ...(hasLamination ? [[`${money.format(laminationCost)} đ`, "Tiền màng", "+"]] : [])] },
+      ],
+      finalLabel: "Giá bán / cuộn",
+      finalValue: moneyValue(sale),
+      finalUnit: "/ cuộn",
+      sources: [[`${w} mm`, "Chiều ngang tem"], ["5 mm", "Chừa mép"], [`${m} m`, "Chiều dài cuộn"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [usesAreaProcessing ? `${money.format(areaProcessingRate)} đ/m²` : moneyValue(processingFee), usesAreaProcessing ? "Đơn giá gia công nhập" : "Phí gia công"], ...(formula === "tem-laminated" ? [[`${money.format(parseMoneyInput(laminationPrice))} đ/m²`, "Đơn giá màng"]] : [])],
+    };
+  }, [formula, width, length, meters, labelsPerRoll, paperPrice, processing, laminationPrice, profitMode, profitAmount, profitPercent]);
+
+  useEffect(() => {
+    if (!showFormulaHelp) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setShowFormulaHelp(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showFormulaHelp]);
+
   const cleanBienText = (str) => {
     if (!str) return "";
     return str
@@ -1004,7 +1203,6 @@ export function App() {
       [
         "tem-known-meters",
         "tem-one-color",
-        "tem-two-color",
         "tem-laminated",
       ].includes(formula)
     ) {
@@ -1016,7 +1214,7 @@ export function App() {
         id: `item-${Date.now()}`,
         stt: currentQuote.items.length + 1,
         pn: `TEM-${width}x${length}-${meters}M`,
-        desc: `${formula === "tem-one-color" ? "Tem in 1 màu" : formula === "tem-two-color" ? "Tem in nhiều màu" : formula === "tem-laminated" ? "Tem màu cán màng" : "Cuộn tem nhãn theo mét"} ${width} × ${length} mm · dài ${meters} m/cuộn`,
+        desc: `${formula === "tem-one-color" ? "Tem in màu" : formula === "tem-laminated" ? "Tem màu cán màng" : "Cuộn tem nhãn theo mét"} ${width} × ${length} mm · dài ${meters} m/cuộn`,
         quantity: q,
         unit: mode === "roll" ? "Cuộn" : "Tem",
         unitPrice: uPrice,
@@ -1260,6 +1458,36 @@ export function App() {
     }));
   };
 
+  const handleCalculatorEnterKey = (event) => {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      event.nativeEvent?.isComposing ||
+      !(event.target instanceof HTMLInputElement)
+    ) {
+      return;
+    }
+
+    const panel = event.target.closest(".inputs-panel");
+    if (!panel) return;
+
+    const editableInputs = Array.from(
+      panel.querySelectorAll(
+        'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([disabled]):not([readonly])',
+      ),
+    ).filter((element) => element.getClientRects().length > 0);
+    const currentIndex = editableInputs.indexOf(event.target);
+    const nextInput = editableInputs[currentIndex + 1];
+    if (!nextInput) return;
+
+    event.preventDefault();
+    nextInput.focus();
+    nextInput.select();
+  };
+
   const input = (label, hint, value, setValue, unit, icon) => (
     <label className="input-row">
       <span className="field-icon">{icon}</span>
@@ -1287,8 +1515,43 @@ export function App() {
     </label>
   );
 
+  const supplierQuickSelect = () => (
+    <div className="supplier-quick-select-box">
+      <div className="quick-select-header">
+        <Storefront size={16} />
+        <span>Chọn giá giấy từ nhà cung cấp:</span>
+      </div>
+      <select
+        value={selectedPaperCode}
+        onChange={(event) => {
+          const code = event.target.value;
+          setSelectedPaperCode(code);
+          if (!code) return;
+
+          const selectedPaper = supplierPrices.find(
+            (item) => item.code === code,
+          );
+          if (!selectedPaper) return;
+
+          setPaperPrice(formatMoneyInput(selectedPaper.paperPrice));
+          showToast(
+            `Đã áp dụng giá giấy ${money.format(selectedPaper.paperPrice)} VND/m² (${selectedPaper.supplier} - ${selectedPaper.code})`,
+          );
+        }}
+      >
+        <option value="">-- Chọn loại giấy từ bảng giá nhà cung cấp --</option>
+        {supplierPrices.map((item) => (
+          <option key={item.id} value={item.code}>
+            [{item.supplier}] {item.code} - {item.name} (
+            {money.format(item.paperPrice)} đ/m²)
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" onKeyDown={handleCalculatorEnterKey}>
       {["checking", "downloading", "installing", "installed"].includes(
         updateStatus,
       ) && (
@@ -1676,12 +1939,45 @@ export function App() {
               </div>
 
               {category === "tem" && (
-                <label className="formula-select">
-                  <span>Phương thức báo giá</span>
-                  <select
-                    value={formula}
-                    onChange={(event) => setFormula(event.target.value)}
-                  >
+                <div className="formula-select">
+                  <div className="formula-label-row">
+                    <span>Phương thức báo giá</span>
+                  </div>
+                  <div className="formula-control-row">
+                    <span className={`formula-help ${showFormulaHelp ? "expanded" : ""}`}>
+                      <button
+                        type="button"
+                        className="formula-help-button"
+                        aria-label={`Xem công thức: ${FORMULA_HELP[formula].title}`}
+                        aria-describedby="formula-help-tooltip"
+                        aria-expanded={showFormulaHelp}
+                        aria-controls="formula-detail-popover"
+                        onClick={() => setShowFormulaHelp((current) => !current)}
+                      >
+                        <Info size={15} weight="bold" />
+                      </button>
+                      <span
+                        id="formula-help-tooltip"
+                        className="formula-tooltip"
+                        role="tooltip"
+                      >
+                        <strong>{FORMULA_HELP[formula].title}</strong>
+                        {FORMULA_HELP[formula].lines.map((line, index) => (
+                          <span className="formula-tooltip-line" key={line}>
+                            <em>{index + 1}</em>
+                            <span>{line}</span>
+                          </span>
+                        ))}
+                        <small>{FORMULA_HELP[formula].note}</small>
+                      </span>
+                    </span>
+                    <select
+                      value={formula}
+                      onChange={(event) => {
+                        setFormula(event.target.value);
+                        setShowFormulaHelp(false);
+                      }}
+                    >
                     <option value="tem-known-meters">
                       1. Báo giá cuộn tem theo chiều dài (mét)
                     </option>
@@ -1695,16 +1991,103 @@ export function App() {
                       4. Quy đổi số lượng tem trên cuộn
                     </option>
                     <option value="tem-one-color">
-                      5. Báo giá tem in 1 màu
-                    </option>
-                    <option value="tem-two-color">
-                      6. Báo giá tem in nhiều màu
+                      5. Báo giá tem in màu
                     </option>
                     <option value="tem-laminated">
-                      7. Báo giá tem màu cán màng
+                      6. Báo giá tem màu cán màng
                     </option>
-                  </select>
-                </label>
+                    </select>
+                  </div>
+                  {showFormulaHelp && (
+                    <aside
+                      id="formula-detail-popover"
+                      className={`formula-detail-popover ${!["tem-piece", "tem-label-count"].includes(formula) ? "has-roll-diagram" : ""}`}
+                      aria-label={`Minh hoạ chi tiết: ${FORMULA_HELP[formula].title}`}
+                    >
+                      <div className="formula-detail-head">
+                        <span className="formula-detail-icon">
+                          <Calculator size={18} weight="bold" />
+                        </span>
+                        <div>
+                          <strong>Ví dụ tính giá</strong>
+                          <span>{formulaWalkthrough.subject}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="formula-detail-close"
+                          aria-label="Đóng minh hoạ công thức"
+                          onClick={() => setShowFormulaHelp(false)}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      {!["tem-piece", "tem-label-count"].includes(formula) && (
+                        <figure className="formula-roll-diagram">
+                          <img
+                            src={formulaRollAnatomy}
+                            alt="Sơ đồ cuộn tem: chiều ngang tem, lề 5 mm, chiều dài cuộn, giá giấy và phí gia công mỗi cuộn"
+                          />
+                        </figure>
+                      )}
+
+                      <div className="formula-detail-steps">
+                        {formulaWalkthrough.steps.map((step, index) => (
+                          <div className="formula-detail-step" key={step.label}>
+                            <span className="formula-step-number">{index + 1}</span>
+                            <div>
+                              <strong>{step.label}</strong>
+                              <span className="formula-step-equation">{step.equation}</span>
+                              <span className="formula-step-factors">
+                                {step.factors.map(([value, label, operatorBefore], factorIndex) => (
+                                  <span className="formula-step-factor-wrap" key={`${value}-${label}`}>
+                                    {factorIndex > 0 && (
+                                      <em>{operatorBefore || step.operator || "→"}</em>
+                                    )}
+                                    <span className="formula-step-factor">
+                                      <small>{label}</small>
+                                      <b>{value}</b>
+                                    </span>
+                                  </span>
+                                ))}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="formula-detail-result">
+                        <span className="formula-result-arrow">
+                          <ArrowRight size={22} weight="bold" />
+                        </span>
+                        <div>
+                          <span>{formulaWalkthrough.quantityOnly ? "Làm tròn xuống" : "Làm tròn lên"}</span>
+                          <strong>
+                            {formulaWalkthrough.finalValue}
+                            {formulaWalkthrough.finalUnit && (
+                              <span className="formula-result-unit">{formulaWalkthrough.finalUnit}</span>
+                            )}
+                          </strong>
+                          <small>{formulaWalkthrough.finalLabel}</small>
+                        </div>
+                        {!formulaWalkthrough.quantityOnly && <em>Chưa gồm VAT</em>}
+                      </div>
+
+                      <div className="formula-detail-sources">
+                        <strong>Các số này lấy từ đâu?</strong>
+                        <div>
+                          {formulaWalkthrough.sources.map(([value, label]) => (
+                            <span className="formula-source-item" key={`${value}-${label}`}>
+                              <b>{value}</b>
+                              <ArrowRight size={13} weight="bold" />
+                              <span>{label}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </aside>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -2860,7 +3243,6 @@ export function App() {
             [
               "tem-known-meters",
               "tem-one-color",
-              "tem-two-color",
               "tem-laminated",
             ].includes(formula) ? (
             <div className="workspace">
@@ -2873,40 +3255,7 @@ export function App() {
                   </div>
                 </div>
 
-                <div className="supplier-quick-select-box">
-                  <div className="quick-select-header">
-                    <Storefront size={16} />
-                    <span>Chọn Giá giấy từ Nhà Cung Cấp:</span>
-                  </div>
-                  <select
-                    value={selectedPaperCode}
-                    onChange={(e) => {
-                      const code = e.target.value;
-                      setSelectedPaperCode(code);
-                      if (code) {
-                        const found = supplierPrices.find(
-                          (item) => item.code === code,
-                        );
-                        if (found) {
-                          setPaperPrice(formatMoneyInput(found.paperPrice));
-                          showToast(
-                            `Đã áp dụng giá giấy ${money.format(found.paperPrice)} VND/m² (${found.supplier} - ${found.code})`,
-                          );
-                        }
-                      }
-                    }}
-                  >
-                    <option value="">
-                      -- Chọn loại giấy từ Bảng giá NCC --
-                    </option>
-                    {supplierPrices.map((item) => (
-                      <option key={item.id} value={item.code}>
-                        [{item.supplier}] {item.code} - {item.name} (
-                        {money.format(item.paperPrice)} đ/m²)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {supplierQuickSelect()}
                 {input(
                   "Chiều ngang tem",
                   "Kích thước ngang của 1 con tem",
@@ -2939,14 +3288,35 @@ export function App() {
                   "VND/m²",
                   <Stack size={22} />,
                 )}
-                {input(
-                  "Phí gia công",
-                  "Sales tùy chỉnh theo số lượng đặt",
-                  processing,
-                  setProcessing,
-                  "VND/cuộn",
-                  <Wrench size={22} />,
-                )}
+                {[
+                  "tem-known-meters",
+                  "tem-one-color",
+                  "tem-laminated",
+                ].includes(formula) ? input(
+                    "Phí gia công",
+                    "Nhập đơn giá gia công theo mét vuông",
+                    processing,
+                    setProcessing,
+                    "VND/m²",
+                    <Wrench size={22} />,
+                  ) : input(
+                    "Phí gia công",
+                    "Sales tùy chỉnh theo số lượng đặt",
+                    processing,
+                    setProcessing,
+                    "VND/cuộn",
+                    <Wrench size={22} />,
+                  )}
+                {formula === "tem-laminated"
+                  ? input(
+                      "Tiền màng",
+                      "Nhập đơn giá màng cán theo mét vuông",
+                      laminationPrice,
+                      setLaminationPrice,
+                      "VND/m²",
+                      <Stack size={22} />,
+                    )
+                  : null}
                 <div className="quantity-block">
                   <div className="qty-label">
                     <CirclesFour size={22} />
@@ -3073,22 +3443,41 @@ export function App() {
                   </div>
                   <div className="calc-row">
                     <span>Phí gia công / cuộn</span>
-                    <b>{money.format(parseMoneyInput(processing))} VND</b>
+                    <b>
+                      {[
+                        "tem-known-meters",
+                        "tem-one-color",
+                        "tem-laminated",
+                      ].includes(formula)
+                        ? `${(displayCalc.materialAreaM2 ?? displayCalc.area)
+                            .toFixed(2)
+                            .replace(".", ",")} m² × ${money.format(
+                            parseMoneyInput(processing),
+                          )} = ${money.format(
+                            displayCalc.processingFee ??
+                              displayCalc.areaProcessingCost ??
+                              calc.areaProcessingCost,
+                          )}`
+                        : money.format(parseMoneyInput(processing))}{" "}
+                      VND
+                    </b>
                   </div>
-                  {["tem-one-color", "tem-two-color", "tem-laminated"].includes(
-                    formula,
-                  ) ? (
-                    <div className="calc-row">
-                      <span>Phụ phí màu / cán màng</span>
-                      <b>
-                        {formula === "tem-one-color"
-                          ? "5.000"
-                          : formula === "tem-two-color"
-                            ? "7.000"
-                            : "11.000"}{" "}
-                        VND
-                      </b>
-                    </div>
+                  {formula === "tem-laminated" ? (
+                    <>
+                      <div className="calc-row">
+                        <span>Tiền màng / cuộn</span>
+                        <b>
+                          {(displayCalc.materialAreaM2 ?? displayCalc.area)
+                            .toFixed(2)
+                            .replace(".", ",")}{" "}
+                          m² × {money.format(parseMoneyInput(laminationPrice))} ={" "}
+                          {money.format(
+                            displayCalc.laminationCost ?? calc.laminationCost,
+                          )}{" "}
+                          VND
+                        </b>
+                      </div>
+                    </>
                   ) : null}
                   <div className="calc-row total">
                     <span>Giá vốn sản xuất / cuộn</span>
@@ -3152,6 +3541,7 @@ export function App() {
                     <p>Nhập kích thước của một tem nhãn</p>
                   </div>
                 </div>
+                {supplierQuickSelect()}
                 {input(
                   "Chiều rộng tem",
                   "Kích thước cạnh ngang của 1 tem",
@@ -3312,6 +3702,7 @@ export function App() {
                 </div>
                 {formula === "tem-roll-quantity" ? (
                   <>
+                    {supplierQuickSelect()}
                     {input(
                       "Chiều ngang tem",
                       "Tính khổ vật liệu (+5 mm)",
