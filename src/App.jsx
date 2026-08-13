@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import html2pdf from "html2pdf.js";
@@ -232,6 +233,7 @@ export function App() {
   const [saved, setSaved] = useState(false);
   const [updateStatus, setUpdateStatus] = useState("idle");
   const [updateMessage, setUpdateMessage] = useState("");
+  const [appVersion, setAppVersion] = useState("0.1.8");
   const [backendCalc, setBackendCalc] = useState(null);
   const [backendPieceCalc, setBackendPieceCalc] = useState(null);
   const [backendRollByCountCalc, setBackendRollByCountCalc] = useState(null);
@@ -468,6 +470,11 @@ export function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showAddForm, showCustomerForm, showPrintModal]);
+
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return;
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
 
   const handleSaveSupplierPrice = (e) => {
     e.preventDefault();
@@ -929,8 +936,8 @@ export function App() {
       newItem = {
         id: `item-${Date.now()}`,
         stt: currentQuote.items.length + 1,
-        pn: `TEM-${width}x${meters}M`,
-        desc: `${formula === "tem-one-color" ? "Tem in 1 màu" : formula === "tem-two-color" ? "Tem in nhiều màu" : formula === "tem-laminated" ? "Tem màu cán màng" : "Cuộn tem nhãn theo mét"} ${width}mm × ${meters}m`,
+        pn: `TEM-${width}x${length}-${meters}M`,
+        desc: `${formula === "tem-one-color" ? "Tem in 1 màu" : formula === "tem-two-color" ? "Tem in nhiều màu" : formula === "tem-laminated" ? "Tem màu cán màng" : "Cuộn tem nhãn theo mét"} ${width} × ${length} mm · dài ${meters} m/cuộn`,
         quantity: q,
         unit: mode === "roll" ? "Cuộn" : "Tem",
         unitPrice: uPrice,
@@ -2700,8 +2707,8 @@ export function App() {
               <div className="settings-update-icon"><Download size={30} /></div>
               <div>
                 <h2>Cập nhật phần mềm</h2>
-                <p>Kiểm tra và cài đặt phiên bản Unitech Pricing mới nhất từ GitHub.</p>
-                <small>Phiên bản hiện tại: v0.1.0</small>
+                <p>Kiểm tra và cài đặt phiên bản DBY Label Pricing mới nhất từ GitHub.</p>
+                <small>Phiên bản hiện tại: v{appVersion}</small>
               </div>
               <button
                 type="button"
@@ -2776,7 +2783,15 @@ export function App() {
                   <Ruler size={22} />,
                 )}
                 {input(
-                  "Số mét / cuộn",
+                  "Chiều dọc tem",
+                  "Kích thước dọc của 1 con tem",
+                  length,
+                  setLength,
+                  "mm",
+                  <Tag size={22} />,
+                )}
+                {input(
+                  "Chiều dài cuộn tem",
                   "Chiều dài cuộn tem khách yêu cầu",
                   meters,
                   setMeters,
@@ -3173,7 +3188,7 @@ export function App() {
                       <Ruler size={22} />,
                     )}
                     {input(
-                      "Chiều cao tem",
+                      "Chiều dọc tem",
                       "Quy đổi bước tem (+3 mm)",
                       length,
                       setLength,
@@ -3216,7 +3231,7 @@ export function App() {
                 ) : (
                   <>
                     {input(
-                      "Chiều cao tem",
+                      "Chiều dọc tem",
                       "Kích thước theo chiều chạy tem",
                       length,
                       setLength,
@@ -3224,7 +3239,7 @@ export function App() {
                       <Tag size={22} />,
                     )}
                     {input(
-                      "Số mét / cuộn",
+                      "Chiều dài cuộn tem",
                       "Chiều dài thực tế của cuộn",
                       meters,
                       setMeters,
