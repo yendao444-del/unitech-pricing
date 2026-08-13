@@ -188,6 +188,23 @@ h1 { color: #185225; font-size: 34px; font-weight: 800; }
 .toast-notification button { height: 28px; margin-left: 4px; padding: 0 10px; border: 1px solid #77e5a0; border-radius: 4px; color: #123c20; background: #fff; font: inherit; font-size: 11px; font-weight: 800; }.toast-notification button:hover { background: #dff8e8; }
 @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
+.update-progress-overlay { position: fixed; inset: 0; z-index: 13000; display: grid; place-items: center; padding: 24px; background: rgba(4, 24, 13, .82); backdrop-filter: blur(7px); }
+.update-progress-card { width: min(520px, 100%); padding: 34px 38px 32px; text-align: center; color: #163b22; background: #fff; border: 1px solid #83b591; border-radius: 14px; box-shadow: 0 24px 80px rgba(0, 0, 0, .34); }
+.update-progress-icon { width: 70px; height: 70px; margin: 0 auto 17px; display: grid; place-items: center; color: #fff; background: #176b32; border-radius: 50%; box-shadow: 0 0 0 9px #e9f5ec; }
+.update-progress-icon:not(.installed) svg { animation: updatePulse 1.2s ease-in-out infinite; }
+.update-progress-icon.installed { background: #168f4b; }
+.update-progress-kicker { display: block; margin-bottom: 7px; color: #238248; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; }
+.update-progress-card h2 { margin: 0; color: #123c20; font-size: 23px; letter-spacing: -.35px; }
+.update-progress-card > p { min-height: 22px; margin: 9px 0 22px; color: #63736a; font-size: 13px; line-height: 1.55; }
+.update-progress-track { position: relative; height: 10px; overflow: hidden; background: #e6eee8; border-radius: 999px; }
+.update-progress-track > span { display: block; height: 100%; min-width: 4%; background: linear-gradient(90deg, #176b32, #36bc68); border-radius: inherit; transition: width .25s ease; }
+.update-progress-track.indeterminate > span { position: absolute; animation: updateIndeterminate 1.15s ease-in-out infinite; }
+.update-progress-meta { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 18px; color: #758078; font-size: 11px; }
+.update-progress-meta strong { color: #176b32; font-size: 12px; }
+.update-restart-notice { margin-top: 22px; padding: 12px 14px; color: #6c5b25; background: #fff8df; border: 1px solid #eadb9b; border-radius: 7px; font-size: 12px; font-weight: 600; line-height: 1.45; }
+@keyframes updatePulse { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(3px); opacity: .68; } }
+@keyframes updateIndeterminate { from { left: -35%; } to { left: 100%; } }
+
 .primary-header-btn { background: #176b32 !important; color: #fff !important; border-color: #176b32 !important; }
 .primary-header-btn:hover { background: #1a7540 !important; }
 

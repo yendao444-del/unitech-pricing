@@ -55,6 +55,10 @@ const formatMoneyInput = (value) => {
   const numericValue = parseMoneyInput(value);
   return value === "" || value == null ? "" : money.format(numericValue);
 };
+const updatePreviewStatus =
+  import.meta.env.DEV && typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("update-preview") || ""
+    : "";
 const fmt = (value) =>
   `${money.format(Math.max(0, Math.ceil(value / 1000) * 1000))} đ`;
 
@@ -231,8 +235,28 @@ export function App() {
   const [activeMenu, setActiveMenu] = useState("tem");
   const [formula, setFormula] = useState("tem-known-meters");
   const [saved, setSaved] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState("idle");
-  const [updateMessage, setUpdateMessage] = useState("");
+  const [updateStatus, setUpdateStatus] = useState(
+    updatePreviewStatus || "idle",
+  );
+  const [updateMessage, setUpdateMessage] = useState(
+    updatePreviewStatus
+      ? updatePreviewStatus === "installing"
+        ? "Đã tải xong. Đang cài đặt; ứng dụng sẽ tự đóng và mở lại..."
+        : updatePreviewStatus === "installed"
+          ? "Đã cài đặt bản cập nhật. Đang khởi động lại ứng dụng..."
+          : "Đang tải bản cập nhật an toàn từ GitHub. Vui lòng giữ ứng dụng mở."
+      : "",
+  );
+  const [updateProgress, setUpdateProgress] = useState(
+    updatePreviewStatus === "downloading"
+      ? 64
+      : ["installing", "installed"].includes(updatePreviewStatus)
+        ? 100
+        : 0,
+  );
+  const [updateTargetVersion, setUpdateTargetVersion] = useState(
+    updatePreviewStatus ? "0.1.15" : "",
+  );
   const [appVersion, setAppVersion] = useState("0.1.8");
   const [backendCalc, setBackendCalc] = useState(null);
   const [backendPieceCalc, setBackendPieceCalc] = useState(null);
@@ -245,8 +269,10 @@ export function App() {
       return;
     }
 
+    setUpdateProgress(0);
+    setUpdateTargetVersion("");
     setUpdateStatus("checking");
-    setUpdateMessage("Đang kiểm tra bản cập nhật...");
+    setUpdateMessage("Đang kết nối tới máy chủ cập nhật...");
     try {
       const update = await checkForUpdate();
       if (!update) {
@@ -255,13 +281,48 @@ export function App() {
         return;
       }
 
-      setUpdateStatus("available");
-      setUpdateMessage(`Đã có phiên bản ${update.version}. Đang tải và cài đặt...`);
-      await update.downloadAndInstall();
+      let downloadedBytes = 0;
+      let totalBytes = 0;
+      setUpdateTargetVersion(update.version);
+      setUpdateStatus("downloading");
+      setUpdateMessage(`Đang tải DBY Label Pricing v${update.version}...`);
+      localStorage.setItem(
+        "dby_update_pending",
+        JSON.stringify({ version: update.version, startedAt: Date.now() }),
+      );
+
+      // Give React enough time to paint the blocking update screen before the
+      // native installer takes control and closes the current window.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          totalBytes = event.data.contentLength || 0;
+          downloadedBytes = 0;
+          setUpdateProgress(0);
+          return;
+        }
+        if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength;
+          if (totalBytes > 0) {
+            setUpdateProgress(
+              Math.min(99, Math.round((downloadedBytes / totalBytes) * 100)),
+            );
+          }
+          return;
+        }
+        if (event.event === "Finished") {
+          setUpdateProgress(100);
+          setUpdateStatus("installing");
+          setUpdateMessage(
+            "Đã tải xong. Đang cài đặt; ứng dụng sẽ tự đóng và mở lại...",
+          );
+        }
+      });
       setUpdateStatus("installed");
-      setUpdateMessage("Đã cài đặt bản cập nhật. Ứng dụng sẽ khởi động lại.");
+      setUpdateMessage("Đã cài đặt bản cập nhật. Đang khởi động lại ứng dụng...");
     } catch (error) {
       console.error("Update check failed:", error);
+      localStorage.removeItem("dby_update_pending");
       setUpdateStatus("error");
       setUpdateMessage("Chưa thể kiểm tra cập nhật. Vui lòng thử lại sau.");
     }
@@ -473,7 +534,25 @@ export function App() {
 
   useEffect(() => {
     if (!window.__TAURI_INTERNALS__) return;
-    getVersion().then(setAppVersion).catch(() => {});
+    getVersion()
+      .then((version) => {
+        setAppVersion(version);
+        try {
+          const pending = JSON.parse(
+            localStorage.getItem("dby_update_pending") || "null",
+          );
+          if (pending?.version === version) {
+            localStorage.removeItem("dby_update_pending");
+            setTimeout(
+              () => showToast(`Cập nhật thành công DBY Label Pricing v${version}`),
+              350,
+            );
+          }
+        } catch (error) {
+          localStorage.removeItem("dby_update_pending");
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleSaveSupplierPrice = (e) => {
@@ -1210,6 +1289,60 @@ export function App() {
 
   return (
     <div className="app-shell">
+      {["checking", "downloading", "installing", "installed"].includes(
+        updateStatus,
+      ) && (
+        <div className="update-progress-overlay" role="alertdialog" aria-live="assertive">
+          <div className="update-progress-card">
+            <div className={`update-progress-icon ${updateStatus}`}>
+              {updateStatus === "installed" ? (
+                <Check size={34} weight="bold" />
+              ) : (
+                <Download size={32} />
+              )}
+            </div>
+            <span className="update-progress-kicker">CẬP NHẬT HỆ THỐNG</span>
+            <h2>
+              {updateStatus === "checking"
+                ? "Đang kiểm tra phiên bản mới"
+                : updateStatus === "downloading"
+                  ? `Đang tải phiên bản ${updateTargetVersion}`
+                  : updateStatus === "installing"
+                    ? "Đang cài đặt bản cập nhật"
+                    : "Cài đặt hoàn tất"}
+            </h2>
+            <p>{updateMessage}</p>
+            <div
+              className={`update-progress-track ${updateStatus === "checking" ? "indeterminate" : ""}`}
+              aria-label="Tiến độ cập nhật"
+            >
+              <span
+                style={{
+                  width:
+                    updateStatus === "checking"
+                      ? "35%"
+                      : `${Math.max(updateProgress, updateStatus === "installing" ? 100 : 4)}%`,
+                }}
+              />
+            </div>
+            <div className="update-progress-meta">
+              <strong>
+                {updateStatus === "checking"
+                  ? "Đang kết nối..."
+                  : updateStatus === "downloading"
+                    ? updateProgress > 0
+                      ? `${updateProgress}%`
+                      : "Đang chuẩn bị tải..."
+                    : "100%"}
+              </strong>
+              <span>Không tắt máy hoặc đóng ứng dụng</span>
+            </div>
+            <div className="update-restart-notice">
+              Ứng dụng sẽ tự đóng trong lúc cài đặt và tự mở lại sau khi hoàn tất.
+            </div>
+          </div>
+        </div>
+      )}
       {toastMsg && (
         <div className="toast-notification">
           <Check size={18} /> <span>{toastMsg}</span>
@@ -2713,11 +2846,11 @@ export function App() {
               <button
                 type="button"
                 className="primary-cta settings-update-button"
-                disabled={updateStatus === "checking" || updateStatus === "available"}
+                disabled={["checking", "downloading", "installing", "installed"].includes(updateStatus)}
                 onClick={handleCheckForUpdates}
               >
                 <Download size={18} />
-                {updateStatus === "checking" || updateStatus === "available"
+                {["checking", "downloading", "installing", "installed"].includes(updateStatus)
                   ? "Đang kiểm tra / cài đặt..."
                   : "Kiểm tra cập nhật"}
               </button>
