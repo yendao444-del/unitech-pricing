@@ -47,8 +47,12 @@ if not exist "%UPDATER_KEY%" (
   echo Khong the phat hanh ban cap nhat ma khong co khoa ky goc.
   goto :failed
 )
-set "TAURI_SIGNING_PRIVATE_KEY_PATH=%UPDATER_KEY%"
+rem Chi truyen NOI DUNG private key. Khong truyen *_PATH, tranh Tauri mo luong
+rem giai ma key cu va hoi Password khi key hien tai khong co mat khau.
+set "TAURI_SIGNING_PRIVATE_KEY_PATH="
 set "TAURI_SIGNING_PRIVATE_KEY="
+rem Bo bien password cu cua phien cmd hien tai.
+set "TAURI_SIGNING_PRIVATE_KEY_PASSWORD="
 set /p "TAURI_SIGNING_PRIVATE_KEY="<"%UPDATER_KEY%"
 if not defined TAURI_SIGNING_PRIVATE_KEY (
   echo [ERROR] Khong doc duoc noi dung khoa ky updater.
