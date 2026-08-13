@@ -116,7 +116,7 @@ copy /Y "%SIGN_TEMP%.sig" "%UPDATER_INSTALLER%.sig" >nul || goto :failed
 del /q "%SIGN_TEMP%" "%SIGN_TEMP%.sig" >nul 2>&1
 
 rem latest.json chi tro ve dung file EXE cua GitHub Release se duoc tao o buoc 7.
-powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%UPDATER_INSTALLER%.sig' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing %RELEASE_TAG%'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/DBY.Label.Pricing_%RELEASE_VERSION%_x64-setup.exe' } } }; $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath '%RELEASE_DIR%\latest.json' -Encoding utf8" || goto :failed
+powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%UPDATER_INSTALLER%.sig' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing %RELEASE_TAG%'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/DBY.Label.Pricing_%RELEASE_VERSION%_x64-setup.exe' } } }; $json = $manifest | ConvertTo-Json -Depth 6; [System.IO.File]::WriteAllText('%RELEASE_DIR%\latest.json', $json, (New-Object System.Text.UTF8Encoding($false)))" || goto :failed
 
 copy /Y "%UPDATER_INSTALLER%" "%RELEASE_DIR%\" >nul || goto :failed
 copy /Y "%UPDATER_INSTALLER%.sig" "%RELEASE_DIR%\" >nul || goto :failed

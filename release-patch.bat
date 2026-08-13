@@ -89,7 +89,7 @@ copy /Y "%BUILT_EXE%" "%PATCH_EXE%" >nul || goto :rollback_fail
 call npx tauri signer sign "%PATCH_EXE%" || goto :rollback_fail
 if not exist "%PATCH_SIG%" goto :signature_error
 
-powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%PATCH_SIG%' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing v%RELEASE_VERSION% - Patch'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/%PATCH_EXE_NAME%' } } }; $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath '%PATCH_MANIFEST%' -Encoding utf8" || goto :rollback_fail
+powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%PATCH_SIG%' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing v%RELEASE_VERSION% - Patch'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/%PATCH_EXE_NAME%' } } }; $json = $manifest | ConvertTo-Json -Depth 6; [System.IO.File]::WriteAllText('%PATCH_MANIFEST%', $json, (New-Object System.Text.UTF8Encoding($false)))" || goto :rollback_fail
 
 if "%ENABLE_GITHUB%"=="0" goto :local_success
 
