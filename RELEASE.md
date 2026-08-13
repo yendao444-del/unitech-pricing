@@ -18,7 +18,7 @@ Script sẽ tự động:
 3. Build frontend, chạy test và `cargo check`.
 4. Đồng bộ version tại `src-tauri/tauri.conf.json` và `src-tauri/Cargo.toml`.
 5. Đóng gói bộ cài Windows `.exe` tại máy.
-6. Ký gói updater (`.sig`).
+6. Nạp private key an toàn rồi ký gói updater (`.sig`).
 7. Commit version, push `main`, tạo/push tag.
 8. GitHub Actions nhận tag và xuất GitHub Release có `.exe`, `.sig`, `latest.json`.
 
@@ -44,6 +44,7 @@ vào `src-tauri\target`:
 - `release\*.exe.sig`: chữ ký an toàn của bộ cài updater Windows.
 - `release\latest.json`: thông tin để app đang cài tự kiểm tra bản mới.
 
-GitHub Release cũng có đúng bộ file này.
+Thư mục local này luôn chỉ giữ bộ mới nhất; lần phát hành sau tự dọn file cũ.
+GitHub Release vẫn lưu đầy đủ các phiên bản đã phát hành để phục vụ cập nhật.
 
 `latest.json` là manifest mà app đang cài dùng để tìm bản mới qua GitHub Releases.

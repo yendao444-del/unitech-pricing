@@ -48,6 +48,12 @@ if not exist "%UPDATER_KEY%" (
   goto :failed
 )
 set "TAURI_SIGNING_PRIVATE_KEY_PATH=%UPDATER_KEY%"
+set "TAURI_SIGNING_PRIVATE_KEY="
+set /p "TAURI_SIGNING_PRIVATE_KEY="<"%UPDATER_KEY%"
+if not defined TAURI_SIGNING_PRIVATE_KEY (
+  echo [ERROR] Khong doc duoc noi dung khoa ky updater.
+  goto :failed
+)
 
 echo === 3/8 Cai dependencies neu can ===
 if not exist "node_modules" (
@@ -66,6 +72,8 @@ echo === 6/8 Dong goi bo cai dat co chu ky updater ===
 call npm run build:exe || goto :failed
 
 if not exist "%RELEASE_DIR%" mkdir "%RELEASE_DIR%"
+rem Chi giu lai bo cai cua ban release hien tai, tranh thu muc release bi rac.
+del /q "%RELEASE_DIR%\*.exe" "%RELEASE_DIR%\*.msi" "%RELEASE_DIR%\*.sig" "%RELEASE_DIR%\latest.json" >nul 2>&1
 echo Dang gom toan bo file phat hanh vao "%RELEASE_DIR%"...
 set "UPDATER_INSTALLER="
 for %%F in ("src-tauri\target\release\bundle\nsis\*.exe") do set "UPDATER_INSTALLER=%%~fF"
@@ -74,17 +82,10 @@ if not defined UPDATER_INSTALLER (
   goto :failed
 )
 
-rem Tauri signer tren Windows khong xu ly on dinh duong dan co khoang trang.
-rem Tao file tam khong co khoang trang, ky, roi dat chu ky canh installer goc.
-set "SIGN_TEMP=%TEMP%\unitech-pricing-updater.exe"
-copy /Y "%UPDATER_INSTALLER%" "%SIGN_TEMP%" >nul || goto :failed
-call npx tauri signer sign --private-key-path "%UPDATER_KEY%" "%SIGN_TEMP%" || goto :failed
-if not exist "%SIGN_TEMP%.sig" (
-  echo [ERROR] Khong tao duoc file chu ky updater .sig.
+if not exist "%UPDATER_INSTALLER%.sig" (
+  echo [ERROR] Tauri khong tao duoc file chu ky updater .sig.
   goto :failed
 )
-copy /Y "%SIGN_TEMP%.sig" "%UPDATER_INSTALLER%.sig" >nul || goto :failed
-del /q "%SIGN_TEMP%" "%SIGN_TEMP%.sig" >nul 2>&1
 
 rem latest.json chi tro ve dung file EXE cua GitHub Release se duoc tao o buoc 7.
 powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%UPDATER_INSTALLER%.sig' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing %RELEASE_TAG%'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/DBY.Label.Pricing_%RELEASE_VERSION%_x64-setup.exe' } } }; $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath '%RELEASE_DIR%\latest.json' -Encoding utf8" || goto :failed
