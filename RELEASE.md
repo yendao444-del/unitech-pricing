@@ -36,7 +36,7 @@ Không được đưa key này vào Git, gửi qua chat hoặc đổi key khi ap
 
 ## File tạo ra
 
-- Local: `src-tauri\target\release\bundle\nsis\*.exe`
+- Local: `release\*.exe` (ngay trong thư mục gốc của project)
 - GitHub Release: installer `.exe`, `.sig` và `latest.json`.
 
 `latest.json` là manifest mà app đang cài dùng để tìm bản mới qua GitHub Releases.

@@ -9,6 +9,7 @@ rem ================================================================
 set "PROJECT_DIR=%~dp0"
 set "RELEASE_TAG=%~1"
 set "UPDATER_KEY=%LOCALAPPDATA%\UnitechPricing\updater\unitech-pricing.key"
+set "RELEASE_DIR=release"
 
 if "%~1"=="" (
   for /f "delims=" %%V in ('node scripts\next-release-version.mjs') do set "RELEASE_VERSION=%%V"
@@ -64,6 +65,9 @@ node scripts\set-release-version.mjs "%RELEASE_VERSION%" || goto :failed
 echo === 6/8 Dong goi installer EXE co chu ky updater ===
 call npm run build:exe || goto :failed
 
+if not exist "%RELEASE_DIR%" mkdir "%RELEASE_DIR%"
+copy /Y "src-tauri\target\release\bundle\nsis\*.exe" "%RELEASE_DIR%\" >nul || goto :failed
+
 echo === 7/8 Commit, push va tao Git tag ===
 git add -A
 git commit -m "chore(release): v%RELEASE_VERSION%" || goto :failed
@@ -73,7 +77,7 @@ git push origin "v%RELEASE_VERSION%" || goto :failed
 
 echo === 8/8 Hoan tat ===
 echo Installer local:
-dir /b "src-tauri\target\release\bundle\nsis\*.exe" 2>nul
+dir /b "%RELEASE_DIR%\*.exe" 2>nul
 echo.
 echo GitHub Actions dang tao release tu tag v%RELEASE_VERSION%.
 echo https://github.com/yendao444-del/unitech-pricing/actions
