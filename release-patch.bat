@@ -90,6 +90,7 @@ call npx tauri signer sign "%PATCH_EXE%" || goto :rollback_fail
 if not exist "%PATCH_SIG%" goto :signature_error
 
 powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%PATCH_SIG%' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing v%RELEASE_VERSION% - Patch'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/%PATCH_EXE_NAME%' } } }; $json = $manifest | ConvertTo-Json -Depth 6; [System.IO.File]::WriteAllText('%PATCH_MANIFEST%', $json, (New-Object System.Text.UTF8Encoding($false)))" || goto :rollback_fail
+call cargo run --quiet --manifest-path scripts\updater-verifier\Cargo.toml -- "%PATCH_MANIFEST%" "%PATCH_EXE%" "src-tauri\tauri.conf.json" "%RELEASE_VERSION%" || goto :rollback_fail
 
 if "%ENABLE_GITHUB%"=="0" goto :local_success
 
@@ -99,10 +100,13 @@ git commit -m "chore(patch): v%RELEASE_VERSION%" || goto :rollback_fail
 set "VERSION_COMMITTED=1"
 git push origin main || goto :fail_after_commit
 
-echo [5/5] Tao GitHub Patch Release...
+echo [5/5] Tao va xac minh GitHub Patch Release...
 git tag -a "%RELEASE_TAG%" -m "Unitech Pricing patch v%RELEASE_VERSION%" || goto :fail_after_commit
 git push origin "%RELEASE_TAG%" || goto :fail_after_commit
-gh release create "%RELEASE_TAG%" "%PATCH_EXE%" "%PATCH_SIG%" "%PATCH_MANIFEST%" --repo yendao444-del/unitech-pricing --title "Unitech Pricing v%RELEASE_VERSION% (PATCH)" --notes "Patch - sua loi va thay doi nho." --latest --verify-tag || goto :fail_after_commit
+gh release create "%RELEASE_TAG%" "%PATCH_EXE%" "%PATCH_SIG%" "%PATCH_MANIFEST%" --repo yendao444-del/unitech-pricing --title "Unitech Pricing v%RELEASE_VERSION% (PATCH)" --notes "Patch - sua loi va thay doi nho." --draft --latest=false --verify-tag || goto :fail_after_commit
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-published-update.ps1 -ExpectedVersion "%RELEASE_VERSION%" -Tag "%RELEASE_TAG%" || goto :published_verification_failed
+gh release edit "%RELEASE_TAG%" --repo yendao444-del/unitech-pricing --draft=false --latest || goto :fail_after_commit
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-published-update.ps1 -ExpectedVersion "%RELEASE_VERSION%" || goto :published_verification_failed
 
 echo.
 echo  PATCH v%RELEASE_VERSION% DA PHAT HANH THANH CONG
@@ -159,6 +163,10 @@ goto :rollback_fail
 :signature_error
 echo [ERROR] Khong tao duoc chu ky updater.
 goto :rollback_fail
+:published_verification_failed
+echo [ERROR] Release da tao nhung kiem tra updater production that bai.
+echo [ERROR] Khong trien khai release nay tren may production.
+goto :fail_after_commit
 
 :help
 echo.

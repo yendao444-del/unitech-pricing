@@ -35,5 +35,21 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Unitech Pricing ${{ github.ref_name }}"
           releaseBody: "Xem ghi chú phát hành để biết chi tiết thay đổi."
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
+
+      - name: Verify draft updater assets
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/verify-published-update.ps1 -ExpectedVersion "${{ github.ref_name }}" -Tag "${{ github.ref_name }}"
+
+      - name: Publish verified release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --latest
+
+      - name: Verify public production endpoint
+        shell: powershell
+        run: ./scripts/verify-published-update.ps1 -ExpectedVersion "${{ github.ref_name }}"

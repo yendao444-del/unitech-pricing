@@ -22,6 +22,7 @@ if "%~1"=="" (
 ) else (
   set "RELEASE_VERSION=%RELEASE_TAG:v=%"
 )
+set "RELEASE_EXE_NAME=DBY.Label.Pricing_%RELEASE_VERSION%_x64-setup.exe"
 
 echo.
 echo  Unitech Pricing - Tao ban phat hanh %RELEASE_TAG%
@@ -103,23 +104,18 @@ if not exist "%UPDATER_INSTALLER%" (
   goto :failed
 )
 
-rem Ky thu cong qua file tam khong co khoang trang; password duoc doc tu file
-rem local o buoc 2, nen khong co prompt nhap tay.
-set "SIGN_TEMP=%TEMP%\unitech-pricing-%RELEASE_VERSION%.exe"
-copy /Y "%UPDATER_INSTALLER%" "%SIGN_TEMP%" >nul || goto :failed
-call npx tauri signer sign "%SIGN_TEMP%" || goto :failed
-if not exist "%SIGN_TEMP%.sig" (
+rem Doi ten artifact production truoc khi ky de manifest, EXE va .sig luon khop nhau.
+set "RELEASE_EXE=%RELEASE_DIR%\%RELEASE_EXE_NAME%"
+copy /Y "%UPDATER_INSTALLER%" "%RELEASE_EXE%" >nul || goto :failed
+call npx tauri signer sign "%RELEASE_EXE%" || goto :failed
+if not exist "%RELEASE_EXE%.sig" (
   echo [ERROR] Khong tao duoc file chu ky updater .sig.
   goto :failed
 )
-copy /Y "%SIGN_TEMP%.sig" "%UPDATER_INSTALLER%.sig" >nul || goto :failed
-del /q "%SIGN_TEMP%" "%SIGN_TEMP%.sig" >nul 2>&1
 
 rem latest.json chi tro ve dung file EXE cua GitHub Release se duoc tao o buoc 7.
-powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%UPDATER_INSTALLER%.sig' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing %RELEASE_TAG%'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/DBY.Label.Pricing_%RELEASE_VERSION%_x64-setup.exe' } } }; $json = $manifest | ConvertTo-Json -Depth 6; [System.IO.File]::WriteAllText('%RELEASE_DIR%\latest.json', $json, (New-Object System.Text.UTF8Encoding($false)))" || goto :failed
-
-copy /Y "%UPDATER_INSTALLER%" "%RELEASE_DIR%\" >nul || goto :failed
-copy /Y "%UPDATER_INSTALLER%.sig" "%RELEASE_DIR%\" >nul || goto :failed
+powershell -NoProfile -Command "$sig = (Get-Content -LiteralPath '%RELEASE_EXE%.sig' -Raw).Trim(); $manifest = [ordered]@{ version = '%RELEASE_VERSION%'; notes = 'Unitech Pricing %RELEASE_TAG%'; pub_date = (Get-Date).ToUniversalTime().ToString('o'); platforms = [ordered]@{ 'windows-x86_64' = [ordered]@{ signature = $sig; url = 'https://github.com/yendao444-del/unitech-pricing/releases/download/%RELEASE_TAG%/%RELEASE_EXE_NAME%' } } }; $json = $manifest | ConvertTo-Json -Depth 6; [System.IO.File]::WriteAllText('%RELEASE_DIR%\latest.json', $json, (New-Object System.Text.UTF8Encoding($false)))" || goto :failed
+call cargo run --quiet --manifest-path scripts\updater-verifier\Cargo.toml -- "%RELEASE_DIR%\latest.json" "%RELEASE_EXE%" "src-tauri\tauri.conf.json" "%RELEASE_VERSION%" || goto :failed
 
 echo === 7/8 Commit, push va tao Git tag ===
 git add -A
