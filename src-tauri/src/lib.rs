@@ -1,5 +1,7 @@
 mod commands {
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::process::Command;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WhiteRollQuoteInput {
@@ -167,6 +169,20 @@ pub fn calculate_label_count_from_roll(
 
   Ok(LabelCountFromRollResult { pitch_m, label_count, whole_labels })
 }
+
+#[tauri::command]
+pub fn open_downloads_folder() -> Result<(), String> {
+  let user_profile = env::var("USERPROFILE")
+    .map_err(|_| "KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c thÆ° má»¥c ngÆ°á»i dÃ¹ng Windows")?;
+  let downloads = std::path::PathBuf::from(user_profile).join("Downloads");
+
+  Command::new("explorer.exe")
+    .arg(downloads)
+    .spawn()
+    .map_err(|error| format!("KhÃ´ng má»Ÿ Ä‘Æ°á»£c thÆ° má»¥c Downloads: {error}"))?;
+
+  Ok(())
+}
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -177,7 +193,8 @@ pub fn run() {
       commands::calculate_white_roll_quote,
       commands::calculate_label_piece_quote,
       commands::calculate_label_roll_by_count_quote,
-      commands::calculate_label_count_from_roll
+      commands::calculate_label_count_from_roll,
+      commands::open_downloads_folder
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

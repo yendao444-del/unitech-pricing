@@ -146,6 +146,8 @@ h1 { color: #185225; font-size: 34px; font-weight: 800; }
 .price-label { color: #1b532b; }.price { color: #176b32; font-size: 52px; }.price-meta { justify-content: flex-start; color: #586b5d; }
 .primary-cta { background: #123c20; color: #fff; border-radius: 3px; }.primary-cta:hover { background: #176b32; }
 .secondary-cta { border-radius: 3px; }
+.calc-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 9px; }
+.calc-actions .primary-cta, .calc-actions .secondary-cta { width: 100%; height: 43px; margin-top: 0; }
 
 /* Keep the workbench usable in shorter desktop windows.  The compact rules
    need to follow the Option 2 overrides above; otherwise their sizing is
@@ -182,7 +184,8 @@ h1 { color: #185225; font-size: 34px; font-weight: 800; }
 }
 
 /* Supplier Paper Pricing Styles */
-.toast-notification { position: fixed; bottom: 24px; right: 28px; z-index: 999; background: #123c20; color: #fff; border: 1px solid #31ca6b; border-radius: 6px; padding: 12px 18px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.2); animation: slideIn 0.3s ease; }
+.toast-notification { position: fixed; bottom: 24px; right: 28px; z-index: 11001; background: #123c20; color: #fff; border: 1px solid #31ca6b; border-radius: 6px; padding: 12px 18px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.2); animation: slideIn 0.3s ease; }
+.toast-notification button { height: 28px; margin-left: 4px; padding: 0 10px; border: 1px solid #77e5a0; border-radius: 4px; color: #123c20; background: #fff; font: inherit; font-size: 11px; font-weight: 800; }.toast-notification button:hover { background: #dff8e8; }
 @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .primary-header-btn { background: #176b32 !important; color: #fff !important; border-color: #176b32 !important; }
@@ -357,6 +360,24 @@ h1 { font-size: 25px; }.page-head p { display: none; }
   .result-panel .secondary-cta { height: 35px; font-size: 11px; }
 }
 
+@media (max-height: 799px) {
+  .calc-actions { margin-top: 6px; gap: 6px; }
+  .calc-actions .primary-cta, .calc-actions .secondary-cta { height: 35px; font-size: 10px; }
+}
+
+/* Calculator actions are a matched pair: keep their baseline and height aligned. */
+.result-panel .calc-actions .primary-cta,
+.result-panel .calc-actions .secondary-cta {
+  height: 40px;
+  margin-top: 0;
+  align-items: center;
+}
+
+@media (max-height: 799px) {
+  .result-panel .calc-actions .primary-cta,
+  .result-panel .calc-actions .secondary-cta { height: 35px; }
+}
+
 /* Sub-tabs & Segmented Control Switcher */
 .master-data-module, .quotation-system-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-bottom: 20px; }
 .sub-tabs-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dbe3dc; padding-bottom: 8px; margin-top: 4px; }
@@ -407,7 +428,7 @@ h1 { font-size: 25px; }.page-head p { display: none; }
 .total-line.grand-total { border-top: 1px solid #cbd3cc; padding-top: 6px; font-size: 15px; color: #123c20; }
 .total-line.grand-total b { color: #176b32; font-size: 18px; font-weight: 800; }
 
-.quote-bottom-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; }
+.quote-bottom-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e9e3; }
 .quote-waiting-screen { min-height: 510px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 24px; background: #fff; border: 1px solid #d7e2da; border-radius: 8px; }
 .quote-waiting-icon { width: 76px; height: 76px; display: grid; place-items: center; color: #176b32; background: #edf6ed; border: 1px solid #b8d3ae; border-radius: 50%; margin-bottom: 18px; }
 .quote-waiting-screen h2 { margin: 0; color: #123c20; font-size: 23px; }
@@ -421,7 +442,8 @@ h1 { font-size: 25px; }.page-head p { display: none; }
 .settings-update-button { width: auto; min-width: 190px; height: 43px; margin: 0; }
 .settings-update-button:disabled { cursor: wait; opacity: .7; }
 .update-message { grid-column: 2 / -1; font-size: 13px; }.update-message.error { color: #b33a3a; }.update-message.current, .update-message.installed { color: #176b32; }
-.quote-bottom-actions .secondary-cta { width: auto; min-width: 190px; margin-top: 0; }
+.quote-bottom-actions .secondary-cta { width: auto; min-width: 170px; height: 40px; margin-top: 0; }
+.quote-bottom-actions .primary-cta { width: auto; min-width: 230px; height: 40px; margin-top: 0; }
 .btn-cancel-draft { color: #a63838; border-color: #e8b8b8; background: #fffafa; }
 .btn-cancel-draft:hover { color: #8d2525; background: #fff0f0; border-color: #d68d8d; }
 .btn-save-quote { background: #123c20 !important; }
@@ -434,6 +456,10 @@ h1 { font-size: 25px; }.page-head p { display: none; }
 .print-modal-toolbar { background: #123c20; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
 .print-modal-toolbar h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .print-modal-actions { display: flex; gap: 10px; align-items: center; }
+.print-size-menu { position: relative; }
+.print-size-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; min-width: 178px; padding: 5px; border: 1px solid #b8d3ae; border-radius: 5px; background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.2); }
+.print-size-options button { width: 100%; min-height: 34px; display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 7px; padding: 6px 8px; border: 0; border-radius: 3px; color: #174b2b; background: transparent; font: inherit; font-size: 12px; font-weight: 700; text-align: left; }
+.print-size-options button:hover, .print-size-options button.selected { color: #fff; background: #176b32; }.print-size-options small { color: inherit; font-size: 10px; font-weight: 500; }
 .btn-download-pdf { height: 34px; padding: 0 16px; border: 0; background: #00b894; color: #fff; border-radius: 4px; font-weight: 800; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease; }
 .btn-download-pdf:hover { background: #00d1a7; }
 .btn-print { height: 34px; padding: 0 16px; border: 1px solid #31ca6b; background: transparent; color: #31ca6b; border-radius: 4px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -442,6 +468,8 @@ h1 { font-size: 25px; }.page-head p { display: none; }
 .btn-close-modal:hover { opacity: 1; }
 
 .pdf-page-container { background: #fff; width: 100%; max-width: 790px; margin: 20px auto; padding: 36px 40px; box-shadow: 0 8px 30px rgba(0,0,0,.15); font-family: "Times New Roman", Times, Georgia, serif; color: #000; box-sizing: border-box; overflow-y: auto; flex: 1; line-height: 1.45; }
+.pdf-page-container.paper-a5 { width: 559px; max-width: 559px; padding: 25px 26px; }
+.pdf-page-container.paper-a6 { width: 397px; max-width: 397px; padding: 16px 16px; }
 
 /* PDF Header */
 .pdf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 2px solid #004080; padding-bottom: 12px; }
@@ -480,11 +508,22 @@ h1 { font-size: 25px; }.page-head p { display: none; }
 .pdf-footer-banner { margin-top: 10px; width: 100%; }
 .pdf-footer-banner-img { width: 100%; height: auto; max-height: 90px; object-fit: contain; display: block; }
 
+/* Compact print layouts: A5 keeps the full quotation, while A6 becomes a concise quote slip. */
+.paper-a5 .pdf-official-logo-img { height: 74px; max-width: 180px; }
+.paper-a5 .pdf-header-right h1 { font-size: 11px; }.paper-a5 .pdf-header-right p { font-size: 8px; }.paper-a5 .pdf-title { font-size: 16px; margin-top: 5px; }
+.paper-a5 .pdf-info-box-table { font-size: 8px; }.paper-a5 .pdf-info-box-table td { padding: 3px 4px; }.paper-a5 .pdf-salutation { font-size: 8px; margin: 6px 0 8px; }
+.paper-a5 .pdf-items-table, .paper-a5 .pdf-items-table th { font-size: 8px; }.paper-a5 .pdf-items-table th, .paper-a5 .pdf-items-table td, .paper-a5 .pdf-total-row td, .paper-a5 .pdf-grand-total-row td { padding: 3px 3px; }.paper-a5 .pdf-grand-total-row td { font-size: 9px; }
+.paper-a5 .pdf-terms { font-size: 8px; margin-bottom: 16px; }.paper-a5 .pdf-signatures { padding: 0 20px; margin-bottom: 24px; font-size: 9px; }.paper-a5 .pdf-footer-banner-img { max-height: 55px; }
+
+.paper-a6 .pdf-header { align-items: flex-start; margin-bottom: 6px; padding-bottom: 6px; }.paper-a6 .pdf-official-logo-img { height: 46px; max-width: 92px; }.paper-a6 .pdf-header-right { margin-left: 8px; }.paper-a6 .pdf-header-right h1 { font-size: 7px; line-height: 1.2; }.paper-a6 .pdf-header-right p { display: none; }.paper-a6 .pdf-title { font-size: 12px; letter-spacing: .4px; margin-top: 3px; }
+.paper-a6 .pdf-info-box-table { font-size: 6.5px; margin-bottom: 5px; }.paper-a6 .pdf-info-box-table td { padding: 2px 3px; word-break: break-word; }.paper-a6 .pdf-salutation { display: none; }
+.paper-a6 .pdf-items-table { table-layout: fixed; font-size: 7px; margin-bottom: 6px; }.paper-a6 .pdf-items-table th, .paper-a6 .pdf-items-table td, .paper-a6 .pdf-total-row td, .paper-a6 .pdf-grand-total-row td { padding: 3px 2px; word-break: break-word; }.paper-a6 .pdf-items-table th:nth-child(2), .paper-a6 .pdf-items-table td:nth-child(2), .paper-a6 .pdf-items-table th:nth-child(5), .paper-a6 .pdf-items-table td:nth-child(5), .paper-a6 .pdf-items-table th:nth-child(6), .paper-a6 .pdf-items-table td:nth-child(6) { display: none; }.paper-a6 .pdf-grand-total-row td { font-size: 8px; }.paper-a6 .pdf-terms { display: none; }.paper-a6 .pdf-signatures { padding: 0 7px; margin: 13px 0 0; font-size: 8px; }.paper-a6 .pdf-footer-banner { display: none; }
+
 /* PRINT MEDIA OVERRIDES FOR EXACT A4 PRINTING */
 @media print {
   body * { visibility: hidden; }
   .printable-area, .printable-area * { visibility: visible; }
-  .printable-area { position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 20px !important; box-shadow: none !important; }
+  .printable-area { position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 5mm !important; box-shadow: none !important; }
   .print-modal-overlay, .modal-overlay { position: static !important; background: transparent !important; backdrop-filter: none !important; }
   .print-modal-toolbar, .window-bar, .title-menu, .sidebar, .action-toolbar, .page-head, .crumb, .content-footer { display: none !important; }
 }

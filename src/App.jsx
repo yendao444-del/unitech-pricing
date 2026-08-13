@@ -57,6 +57,12 @@ const formatMoneyInput = (value) => {
 const fmt = (value) =>
   `${money.format(Math.max(0, Math.ceil(value / 1000) * 1000))} đ`;
 
+const PRINT_PAPER_SIZES = {
+  a4: { label: "A4 · 210 × 297 mm", jsPdfFormat: "a4", previewWidth: 794 },
+  a5: { label: "A5 · 148 × 210 mm", jsPdfFormat: "a5", previewWidth: 559 },
+  a6: { label: "A6 · 105 × 148 mm", jsPdfFormat: "a6", previewWidth: 397 },
+};
+
 const DEFAULT_SUPPLIER_PRICES = [
   {
     id: "sp-1",
@@ -340,6 +346,7 @@ export function App() {
 
   // UI Toast state
   const [toastMsg, setToastMsg] = useState(null);
+  const [toastAction, setToastAction] = useState(null);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
@@ -348,9 +355,13 @@ export function App() {
     confirmVariant: "danger",
     onConfirm: null,
   });
-  const showToast = (msg) => {
+  const showToast = (msg, action = null) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
+    setToastAction(action);
+    setTimeout(() => {
+      setToastMsg(null);
+      setToastAction(null);
+    }, 4000);
   };
 
   const askConfirm = ({
@@ -436,6 +447,8 @@ export function App() {
 
   // Print Preview Modal State
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printPaperSize, setPrintPaperSize] = useState("a4");
+  const [isPrintSizeMenuOpen, setIsPrintSizeMenuOpen] = useState(false);
   // A calculator preview is deliberately kept separate from the quotation
   // draft.  Sales can inspect the PDF without silently adding an item or
   // being taken away from the calculator.
@@ -896,6 +909,7 @@ export function App() {
     [printSubtotal, quoteForPrint.vatRate],
   );
   const printGrandTotal = printSubtotal + printVatAmount;
+  const activePaperSize = PRINT_PAPER_SIZES[printPaperSize];
 
   // Builds an item without changing the quotation draft or the current page.
   const buildCalculatedQuoteItem = () => {
@@ -1050,7 +1064,7 @@ export function App() {
     );
     const quoteNoSlug = quoteForPrint.quoteNo ? `-${quoteForPrint.quoteNo}` : "";
     const pdfFilename =
-      `Bao-gia-${dateStr}-${custSlug}${quoteNoSlug}.pdf`.replace(/-+/g, "-");
+      `Bao-gia-${printPaperSize.toUpperCase()}-${dateStr}-${custSlug}${quoteNoSlug}.pdf`.replace(/-+/g, "-");
 
     showToast(`Đang kết xuất và tải ${pdfFilename}...`);
 
@@ -1058,7 +1072,7 @@ export function App() {
     container.style.position = "absolute";
     container.style.left = "-9999px";
     container.style.top = "0";
-    container.style.width = "790px";
+    container.style.width = `${activePaperSize.previewWidth}px`;
     container.style.background = "#ffffff";
     container.style.padding = "0";
     container.style.margin = "0";
@@ -1069,7 +1083,9 @@ export function App() {
     clone.style.height = "auto";
     clone.style.boxShadow = "none";
     clone.style.margin = "0";
-    clone.style.padding = "36px 40px";
+    clone.style.width = `${activePaperSize.previewWidth}px`;
+    clone.style.maxWidth = `${activePaperSize.previewWidth}px`;
+    clone.style.padding = "0";
 
     container.appendChild(clone);
     document.body.appendChild(container);
@@ -1086,24 +1102,35 @@ export function App() {
         scrollX: 0,
         windowWidth: 1024,
       },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      jsPDF: { unit: "mm", format: activePaperSize.jsPdfFormat, orientation: "portrait" },
     };
 
     try {
       await html2pdf().set(opt).from(clone).save();
-      showToast(`✅ Đã tải ${pdfFilename}! File lưu tại thư mục Downloads.`);
-      if (window.__TAURI_INTERNALS__) {
-        try {
-          invoke("plugin:shell|open", { path: "shell:Downloads" }).catch(
-            () => {},
-          );
-        } catch (e) {}
-      }
+      showToast(`✅ Đã tải ${pdfFilename}.`, window.__TAURI_INTERNALS__ ? {
+        label: "Mở Downloads",
+        onClick: async () => {
+          try {
+            await invoke("open_downloads_folder");
+          } catch (e) {
+            showToast("Không thể mở thư mục Downloads.");
+          }
+        },
+      } : null);
     } catch (err) {
       console.error("PDF Export error:", err);
     } finally {
       document.body.removeChild(container);
     }
+  };
+
+  const handlePrintQuote = (paperSize = printPaperSize) => {
+    const printStyle = document.createElement("style");
+    printStyle.id = "dby-print-paper-size";
+    printStyle.textContent = `@page { size: ${paperSize.toUpperCase()} portrait; margin: 5mm; }`;
+    document.head.appendChild(printStyle);
+    window.print();
+    window.setTimeout(() => printStyle.remove(), 500);
   };
 
   const handleAddNewItemToQuote = () => {
@@ -1179,6 +1206,17 @@ export function App() {
       {toastMsg && (
         <div className="toast-notification">
           <Check size={18} /> <span>{toastMsg}</span>
+          {toastAction && (
+            <button
+              type="button"
+              onClick={async () => {
+                await toastAction.onClick();
+                setToastAction(null);
+              }}
+            >
+              {toastAction.label}
+            </button>
+          )}
         </div>
       )}
       <header className="window-bar" onMouseDown={handleWindowDrag}>
@@ -2556,13 +2594,6 @@ export function App() {
                     >
                       <FloppyDisk size={20} /> Lưu vào Lịch sử
                     </button>
-                    <button
-                      type="button"
-                      className="primary-cta btn-print-pdf"
-                      onClick={() => setShowPrintModal(true)}
-                    >
-                      <Printer size={20} /> Xem bản xem trước / In PDF
-                    </button>
                   </div>
                 </div>
                 )
@@ -2950,15 +2981,17 @@ export function App() {
                     </span>
                   </div>
                 </div>
-                <button className="primary-cta" onClick={handleAddCalcToQuote}>
-                  <FileText size={23} /> Tạo báo giá
-                </button>
-                <button
-                  className="secondary-cta"
-                  onClick={handlePreviewCalculationPdf}
-                >
-                  <Printer size={18} /> Xem bản xem trước PDF
-                </button>
+                <div className="calc-actions">
+                  <button
+                    className="secondary-cta"
+                    onClick={handlePreviewCalculationPdf}
+                  >
+                    <Printer size={18} /> Xem bản xem trước PDF
+                  </button>
+                  <button className="primary-cta" onClick={handleAddCalcToQuote}>
+                    <FileText size={23} /> Tạo báo giá
+                  </button>
+                </div>
               </section>
             </div>
           ) : category === "tem" && formula === "tem-piece" ? (
@@ -3101,15 +3134,17 @@ export function App() {
                     </span>
                   </div>
                 </div>
-                <button className="primary-cta" onClick={handleAddCalcToQuote}>
-                  <FileText size={23} /> Tạo báo giá
-                </button>
-                <button
-                  className="secondary-cta"
-                  onClick={handlePreviewCalculationPdf}
-                >
-                  <Printer size={18} /> Xem bản xem trước PDF
-                </button>
+                <div className="calc-actions">
+                  <button
+                    className="secondary-cta"
+                    onClick={handlePreviewCalculationPdf}
+                  >
+                    <Printer size={18} /> Xem bản xem trước PDF
+                  </button>
+                  <button className="primary-cta" onClick={handleAddCalcToQuote}>
+                    <FileText size={23} /> Tạo báo giá
+                  </button>
+                </div>
               </section>
             </div>
           ) : category === "tem" &&
@@ -3396,7 +3431,7 @@ export function App() {
         >
           <div className="modal-content print-modal-content">
             <div className="print-modal-toolbar">
-              <h2>Xem bản xem trước Báo Giá (Trang A4 PDF)</h2>
+              <h2>Xem bản xem trước Báo Giá ({printPaperSize.toUpperCase()} PDF)</h2>
               <div className="print-modal-actions">
                 <button
                   type="button"
@@ -3405,13 +3440,35 @@ export function App() {
                 >
                   <Download size={18} /> Tải file PDF (.pdf)
                 </button>
-                <button
-                  type="button"
-                  className="btn-print"
-                  onClick={() => window.print()}
-                >
-                  <Printer size={18} /> In trang A4
-                </button>
+                <div className="print-size-menu">
+                  <button
+                    type="button"
+                    className="btn-print"
+                    onClick={() => setIsPrintSizeMenuOpen((open) => !open)}
+                    aria-expanded={isPrintSizeMenuOpen}
+                  >
+                    <Printer size={18} /> In {printPaperSize.toUpperCase()} <CaretDown size={14} />
+                  </button>
+                  {isPrintSizeMenuOpen && (
+                    <div className="print-size-options" role="menu">
+                      {Object.entries(PRINT_PAPER_SIZES).map(([value, paper]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={value === printPaperSize ? "selected" : ""}
+                          onClick={() => {
+                            setPrintPaperSize(value);
+                            setIsPrintSizeMenuOpen(false);
+                            handlePrintQuote(value);
+                          }}
+                        >
+                          <Printer size={14} /> In {value.toUpperCase()}
+                          <small>{paper.label.split(" · ")[1]}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   className="btn-close-modal"
@@ -3423,7 +3480,7 @@ export function App() {
             </div>
 
             {/* Printable Document Area */}
-            <div className="pdf-page-container printable-area">
+            <div className={`pdf-page-container printable-area paper-${printPaperSize}`}>
               {/* PDF Header Section */}
               <div className="pdf-header">
                 <div className="pdf-brand-left">
@@ -3533,7 +3590,7 @@ export function App() {
                   ))}
                   {/* VAT & Totals */}
                   <tr className="pdf-total-row">
-                    <td colSpan="6" className="text-right font-bold">
+                    <td colSpan={printPaperSize === "a6" ? "3" : "6"} className="text-right font-bold">
                       VAT {quoteForPrint.vatRate}%
                     </td>
                     <td className="text-right font-bold">
@@ -3541,7 +3598,7 @@ export function App() {
                     </td>
                   </tr>
                   <tr className="pdf-grand-total-row">
-                    <td colSpan="6" className="text-center font-bold">
+                    <td colSpan={printPaperSize === "a6" ? "3" : "6"} className="text-center font-bold">
                       Tổng tiền đã bao gồm VAT
                     </td>
                     <td className="text-right font-bold text-lg">
