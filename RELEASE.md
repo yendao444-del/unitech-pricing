@@ -36,7 +36,14 @@ Không được đưa key này vào Git, gửi qua chat hoặc đổi key khi ap
 
 ## File tạo ra
 
-- Local: `release\*.exe` (ngay trong thư mục gốc của project)
-- GitHub Release: installer `.exe`, `.sig` và `latest.json`.
+Tất cả file local đều được gom ngay vào thư mục `release` cạnh source, không cần
+vào `src-tauri\target`:
+
+- `release\*.exe`: bộ cài Windows chuẩn.
+- `release\*.msi`: bộ cài MSI (phù hợp triển khai nội bộ).
+- `release\*.exe.sig`: chữ ký an toàn của bộ cài updater Windows.
+- `release\latest.json`: thông tin để app đang cài tự kiểm tra bản mới.
+
+GitHub Release cũng có đúng bộ file này.
 
 `latest.json` là manifest mà app đang cài dùng để tìm bản mới qua GitHub Releases.

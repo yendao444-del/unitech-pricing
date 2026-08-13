@@ -27,6 +27,7 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - Separate production cost from selling price with one profit input mode: default to a percentage calculated from production cost; sales can switch to one fixed amount per roll. Do not combine both modes. Round the selling price up to 1,000đ; VAT remains excluded.
 - Profit inputs are internal-only: when a calculation is added to a quotation, PDF, or quotation history, persist and show only the final sale price, quantity, and product description—never production cost, profit %, or profit amount.
 - Formula entries 2–7 must remain enabled and implemented; do not regress them to disabled or “Chưa có công thức”.
+- The release workflow must collect all local release artifacts directly in `release\`: EXE, MSI, updater `.sig`, and `latest.json`; users should not need to retrieve files from `src-tauri\target`.
 - `Xem bản xem trước PDF` from a calculator is an ephemeral preview only: it must not add a line, persist a draft, or navigate to `Báo giá`. Only `Đưa vào Đơn Báo giá` performs that action.
 - Saving a quotation to history finalizes its active draft: save a history snapshot, then replace the editor with a fresh empty draft and show the history. The editor must provide an explicit confirmed `Hủy bản nháp` action; it clears only the unsaved draft and never history.
 - Creating a new quotation must use a visibly new, unique quotation number. If the current draft contains customer data or line items, require confirmation before replacing it.
