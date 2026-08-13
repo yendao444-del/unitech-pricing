@@ -51,3 +51,13 @@ Thư mục local này luôn chỉ giữ bộ mới nhất; lần phát hành sau
 GitHub Release vẫn lưu đầy đủ các phiên bản đã phát hành để phục vụ cập nhật.
 
 `latest.json` là manifest mà app đang cài dùng để tìm bản mới qua GitHub Releases.
+
+## Phát hành patch nhanh
+
+Chạy `release-patch.bat` cho các sửa lỗi hoặc thay đổi nhỏ. Bản patch tự tăng
+version, chỉ build NSIS EXE (không build MSI), ký updater và tạo GitHub Release
+trực tiếp. Máy production vẫn tải một EXE hoàn chỉnh khoảng 3–4 MB vì Tauri
+không hỗ trợ thay riêng thư mục giao diện như Electron.
+
+Chạy `release-patch.bat --local` nếu chỉ muốn kiểm tra và tạo patch local, không
+commit/push hoặc tạo GitHub Release.
