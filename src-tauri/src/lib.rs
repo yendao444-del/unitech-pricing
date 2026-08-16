@@ -56,7 +56,7 @@ mod commands {
         pub height_mm: f64,
         pub labels_per_roll: f64,
         pub paper_price: f64,
-        pub processing_fee: f64,
+        pub processing_rate_per_m2: f64,
         pub quantity: f64,
     }
 
@@ -180,7 +180,7 @@ mod commands {
         }
 
         #[test]
-        fn fixed_roll_surcharge_stays_separate_from_formula_five_rate() {
+        fn fixed_roll_processing_fee_is_included_without_a_surcharge() {
             let result = calculate_white_roll_quote(WhiteRollQuoteInput {
                 width_mm: 95.0,
                 meters: 50.0,
@@ -195,7 +195,7 @@ mod commands {
 
             assert_eq!(result.material_area_m2, 5.0);
             assert_eq!(result.surcharge_cost, 0.0);
-            assert_eq!(result.unit_cost, 51_000.0);
+            assert_eq!(result.unit_cost, 44_000.0);
         }
 
         #[test]
@@ -240,6 +240,26 @@ mod commands {
             assert_eq!(result.unit_cost, 75_000.0);
             assert_eq!(result.order_cost, 150_000.0);
         }
+
+        #[test]
+        fn formula_three_charges_processing_per_square_meter() {
+            let result = calculate_label_roll_by_count_quote(LabelRollByCountQuoteInput {
+                width_mm: 95.0,
+                height_mm: 97.0,
+                labels_per_roll: 1_000.0,
+                paper_price: 8_000.0,
+                processing_rate_per_m2: 4_000.0,
+                quantity: 2.0,
+            })
+            .expect("formula 3 should calculate");
+
+            assert_eq!(result.derived_meters, 100.0);
+            assert_eq!(result.material_area_m2, 10.0);
+            assert_eq!(result.paper_cost, 80_000.0);
+            assert_eq!(result.processing_fee, 40_000.0);
+            assert_eq!(result.unit_cost, 120_000.0);
+            assert_eq!(result.order_cost, 240_000.0);
+        }
     }
 
     #[tauri::command]
@@ -277,24 +297,49 @@ mod commands {
             || input.height_mm < 0.0
             || input.labels_per_roll < 0.0
             || input.paper_price < 0.0
-            || input.processing_fee < 0.0
+            || input.processing_rate_per_m2 < 0.0
             || input.quantity < 0.0
         {
             return Err("Thông số tính giá không được là số âm".into());
         }
 
-        let derived_meters = ((input.height_mm + 3.0) / 1_000.0) * input.labels_per_roll;
-        let useful_width_m = (input.width_mm + 5.0) / 1_000.0;
+        let has_pricing_inputs = input.width_mm > 0.0
+            && input.height_mm > 0.0
+            && input.labels_per_roll > 0.0
+            && input.paper_price > 0.0;
+        let derived_meters = if has_pricing_inputs {
+            ((input.height_mm + 3.0) / 1_000.0) * input.labels_per_roll
+        } else {
+            0.0
+        };
+        let useful_width_m = if has_pricing_inputs {
+            (input.width_mm + 5.0) / 1_000.0
+        } else {
+            0.0
+        };
         let material_area_m2 = useful_width_m * derived_meters;
-        let paper_cost = material_area_m2 * input.paper_price;
-        let unit_cost = round_up_thousand(paper_cost + input.processing_fee);
+        let paper_cost = if has_pricing_inputs {
+            material_area_m2 * input.paper_price
+        } else {
+            0.0
+        };
+        let processing_fee = if has_pricing_inputs {
+            material_area_m2 * input.processing_rate_per_m2
+        } else {
+            0.0
+        };
+        let unit_cost = if has_pricing_inputs {
+            round_up_thousand(paper_cost + processing_fee)
+        } else {
+            0.0
+        };
 
         Ok(LabelRollByCountQuoteResult {
             derived_meters,
             useful_width_m,
             material_area_m2,
             paper_cost,
-            processing_fee: input.processing_fee,
+            processing_fee,
             unit_cost,
             quantity: input.quantity,
             order_cost: unit_cost * input.quantity,

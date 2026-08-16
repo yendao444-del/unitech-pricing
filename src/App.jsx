@@ -216,6 +216,7 @@ const FORMULA_HELP = {
     title: "Báo giá cuộn theo số lượng tem",
     lines: [
       "Chiều dài cuộn (m) = (Chiều dọc tem + 3 mm) ÷ 1.000 × Số tem/cuộn",
+      "Phí gia công/cuộn = Diện tích vật liệu × Đơn giá gia công/m² (ví dụ 4.000đ/m²)",
       "Sau khi suy ra chiều dài, giá cuộn được tính theo phương thức 1.",
     ],
     note: "Giá bán làm tròn lên 1.000đ, chưa gồm VAT.",
@@ -1001,13 +1002,15 @@ export function App() {
     const h = Number(length) || 0;
     const labels = Number(labelsPerRoll) || 0;
     const p = parseMoneyInput(paperPrice);
-    const fee = parseMoneyInput(processing);
+    const processingRate = parseMoneyInput(processing);
     const q = Number(quantity) || 0;
-    const derivedMeters = ((h + 3) / 1000) * labels;
-    const usefulWidth = (w + 5) / 1000;
+    const hasPricingInputs = w > 0 && h > 0 && labels > 0 && p > 0;
+    const derivedMeters = hasPricingInputs ? ((h + 3) / 1000) * labels : 0;
+    const usefulWidth = hasPricingInputs ? (w + 5) / 1000 : 0;
     const area = usefulWidth * derivedMeters;
-    const paper = area * p;
-    const unit = Math.ceil((paper + fee) / 1000) * 1000;
+    const paper = hasPricingInputs ? area * p : 0;
+    const fee = hasPricingInputs ? area * processingRate : 0;
+    const unit = hasPricingInputs ? Math.ceil((paper + fee) / 1000) * 1000 : 0;
     return {
       derivedMeters,
       usefulWidth,
@@ -1033,7 +1036,7 @@ export function App() {
         heightMm: Number(length) || 0,
         labelsPerRoll: Number(labelsPerRoll) || 0,
         paperPrice: parseMoneyInput(paperPrice),
-        processingFee: parseMoneyInput(processing),
+        processingRatePerM2: parseMoneyInput(processing),
         quantity: Number(quantity) || 0,
       },
     })
@@ -1085,18 +1088,19 @@ export function App() {
     if (formula === "tem-roll-quantity") {
       const derived = ((l + 3) / 1000) * labels;
       const area = ((w + 5) / 1000) * derived;
-      const unit = Math.ceil((area * paper + processingFee) / 1000) * 1000;
+      const processingCost = area * areaProcessingRate;
+      const unit = Math.ceil((area * paper + processingCost) / 1000) * 1000;
       return {
         subject: `${labels} tem / cuộn, tem cao ${l} mm`,
         steps: [
           { label: "Chiều dài cuộn suy ra", equation: `(${l} + 3) ÷ 1.000 × ${labels} = ${formatted(derived)} m`, operator: "×", factors: [[`${l} + 3 mm`, "Bước tem"], [`${labels} tem`, "Số tem/cuộn"]] },
           { label: "Diện tích vật liệu", equation: `(${w} + 5) ÷ 1.000 × ${formatted(derived)} = ${formatted(area)} m²`, operator: "×", factors: [[`${formatted((w + 5) / 1000, 3)} m`, "Khổ tính tiền"], [`${formatted(derived)} m`, "Chiều dài suy ra"]] },
-          { label: "Giá vốn / cuộn", equation: `${formatted(area)} m² × ${money.format(paper)} + ${money.format(processingFee)} = ${moneyValue(unit)}`, operator: "+", factors: [[`${formatted(area)} m²`, "Diện tích"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [moneyValue(processingFee), "Phí gia công"]] },
+          { label: "Giá vốn / cuộn", equation: `${formatted(area)} m² × ${money.format(paper)} + ${formatted(area)} m² × ${money.format(areaProcessingRate)} = ${moneyValue(unit)}`, operator: "+", factors: [[`${formatted(area)} m²`, "Diện tích"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [`${money.format(areaProcessingRate)} đ/m²`, "Đơn giá gia công"]] },
         ],
         finalLabel: "Giá bán / cuộn",
         finalValue: moneyValue(unit),
         finalUnit: "/ cuộn",
-        sources: [[`${w} mm`, "Chiều ngang tem"], [`${l} mm`, "Chiều dọc tem"], [`${labels} tem`, "Số tem/cuộn"], [`${money.format(paper)} đ/m²`, "Giá giấy"]],
+        sources: [[`${w} mm`, "Chiều ngang tem"], [`${l} mm`, "Chiều dọc tem"], [`${labels} tem`, "Số tem/cuộn"], [`${money.format(paper)} đ/m²`, "Giá giấy"], [`${money.format(areaProcessingRate)} đ/m²`, "Đơn giá gia công"]],
       };
     }
 
@@ -3737,10 +3741,10 @@ export function App() {
                     )}
                     {input(
                       "Phí gia công",
-                      "Chi phí gia công một cuộn",
+                      "Đơn giá gia công theo mét vuông (ví dụ: 4.000đ/m²)",
                       processing,
                       setProcessing,
-                      "VND/cuộn",
+                      "VND/m²",
                       <Wrench size={22} />,
                     )}
                     {input(
@@ -3831,6 +3835,22 @@ export function App() {
                               0,
                           )}{" "}
                           VND
+                        </b>
+                      </div>
+                      <div className="calc-row">
+                        <span>Phí gia công / cuộn</span>
+                        <b>
+                          {(
+                            displayRollByCountCalc.materialAreaM2 ??
+                            displayRollByCountCalc.area ??
+                            0
+                          )
+                            .toFixed(2)
+                            .replace(".", ",")} m² × {money.format(parseMoneyInput(processing))} = {money.format(
+                            displayRollByCountCalc.processingFee ??
+                              displayRollByCountCalc.fee ??
+                              0,
+                          )} VND
                         </b>
                       </div>
                       <div className="calc-row total">
